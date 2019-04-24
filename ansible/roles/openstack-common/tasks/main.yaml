@@ -1,7 +1,7 @@
-- name: Install pip
+- name: Install pip (Python 3)
   become: yes
   apt:
-    name: ['python-pip']
+    name: ['python3-pip']
     state: latest
     update_cache: yes
   when: ansible_distribution == "Ubuntu"
@@ -13,6 +13,7 @@
   pip:
     name: ['pip']
     state: latest
+    executable: 'pip3'
 # pip install --upgrade pip
 
 - name: Install PyYAML (for openstacksdk)
@@ -21,10 +22,12 @@
     name: ['PyYAML']
     state: latest
     extra_args: "--ignore-installed"
+    executable: 'pip3'
 
 - name: Install openstacksdk
   become: yes
   pip:
     name: ['openstacksdk']
     state: latest
+    executable: 'pip3'
 # pip install openstack sdk

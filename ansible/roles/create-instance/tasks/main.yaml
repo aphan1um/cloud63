@@ -1,9 +1,13 @@
 # Create a NecTAR instance
+
+- debug:
+    msg: "Name of instance to be made is: {{ instance_name }}"
+
 - name: Create an instance
   os_server:
     name: '{{ instance_name }}'
     image: '{{ instance_image }}'
-    key_name: '{{ instance_key_name }} '
+    key_name: '{{ instance_key_name }}'
     flavor: '{{ instance_flavor }}'
     availability_zone: '{{ availability_zone }}'
     security_groups: '{{ sg_names }}'
@@ -17,3 +21,19 @@
 - debug:
     msg: "Instance {{ instance_name }} has been created. Its IP Address: {{ os_instance.openstack.public_v4 }}"
   when: os_instance.openstack is defined
+
+  # Credit to: https://github.com/msolberg/openstack-ansible-demo/blob/master/tutorial/README.md
+- name: Await SSH connection
+  command: >
+    ssh -i private_key_aphan1.pem -oBatchMode=yes -oStrictHostKeyChecking=no
+    ubuntu@{{ os_instance.openstack.public_v4 }} true
+  register: result
+  until: result is success
+  retries: 20
+  delay: 15
+
+- name: Add created instance to inventory
+  add_host:
+    name: '{{ os_instance.openstack.public_v4 }}'
+    groups: vms
+    ansible_ssh_host: '{{ os_instance.openstack.public_v4 }}'
