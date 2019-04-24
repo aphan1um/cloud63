@@ -1,7 +1,7 @@
 availability_zone: melbourne-qh2-uom
 
 volumes:
- -  vol_name: demo-vol-1
+ -  vol_name: demoVolume
     vol_size: 5
 
 security_groups:
@@ -12,7 +12,7 @@ security_groups:
    port_range_max: 22
    remote_ip_prefix: 128.250.0.0/16 # only ip addresses from unimelb
 
-instance_name: demo
 instance_image: 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
 instance_key_name: andy # TODO: change this
 instance_flavor: uom.mse.2c9g 
+instance_name: demo

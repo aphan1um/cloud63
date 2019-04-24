@@ -6,7 +6,7 @@
   roles:
     # prereq
     - role: openstack-common
-    - role: find-images
+    #- role: find-images
     # prepare for instance creation
     - role: create-volumes
     - role: create-security-groups
