@@ -6,28 +6,33 @@ bounding_box = [112.51, -44.19, 154.34, -9.8] # [72.2,-55.3,168.2,-9.1]
 
 # The four keys needed for twitter bot
 # TODO: Credit to https://stackoverflow.com/a/22889470
-consumer_key = ""
-consumer_secret = ""
-access_key = ""
-access_secret = ""
+# TODO: Better store these keys (coming from aphan1)
+# TODO: Harvest tweets from followers
+consumer_key = "2znfHb14GLJ2x3RfoftrkQoCU"
+consumer_secret = "mT8zKjHNrsQhUE2nKd5Ob4uKppWgIZFFUlTylr1VlTqTFv02WK"
+access_key = "1121009594254249986-CuuaCvTUYqjKLS2uBROkk1cQMLDI30"
+access_secret = "bqwPb7pyqYiKbMA0qhXrfvc5cKJq7WXI6wsvBCQ0Hay7Y"
 
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_key, access_secret)
 api = tweepy.API(auth)
 
-# TODO: Using https://tweepy.readthedocs.io/en/v3.5.0/streaming_how_to.html
+# TODO: Using http://docs.tweepy.org/en/latest/streaming_how_to.html
 class SimpleStreamListener(tweepy.StreamListener):
     def on_status(self, status):
-        print(status.text)
+        print("Tweet: " + status.text)
 
     def on_error(self, status_code):
+        # TODO: Error handling
         if status_code == 420:
-            #returning False in on_data disconnects the stream
+            # returning False in on_data disconnects the stream
             return False
 
 
 ########### MAIN CODE HERE: ############
-myStreamListener = MyStreamListener()
+myStreamListener = SimpleStreamListener()
 
 myStream = tweepy.Stream(auth = api.auth, listener = myStreamListener)
-myStream.filter(locations = bounding_box, async = True) # this starts the real-time listener
+
+# this starts the real-time listener
+myStream.filter(locations = bounding_box, is_async = True)
