@@ -4,5 +4,12 @@
   gather_facts: true
 
   roles:
+    # prereq
     - role: openstack-common
     - role: find-images
+    # prepare for instance creation
+    - role: create-volumes
+    - role: create-security-groups
+    # now create instances
+    - role: create-instance
+    - role: create-volume-snapshots
