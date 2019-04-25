@@ -1,7 +1,7 @@
 # Create a NecTAR instance
 
 - debug:
-    msg: "Name of instance to be made is: {{ instance_name }}"
+    msg: "Name of instance to be made: {{ instance_name }}"
 
 - name: Create an instance
   os_server:
@@ -19,13 +19,24 @@
   register: os_instance
 
 - debug:
-    msg: "Instance {{ instance_name }} has been created. Its IP Address: {{ os_instance.openstack.public_v4 }}"
+    msg: "Instance {{ instance_name }} created. IP Address: {{ os_instance.openstack.public_v4 }}"
   when: os_instance.openstack is defined
+
+# The two actions here are to make sure the private key works
+- name: Preparation - Remove IP from known hosts (to ensure SSH works)
+  known_hosts:
+    state: absent
+    name: '{{ os_instance.openstack.public_v4 }}'
+  become: yes
+
+- name: Preparation - Setting correct permissions for private key
+  command: chmod 600 '{{ ansible_ssh_private_key_file }}'
 
   # Credit to: https://github.com/msolberg/openstack-ansible-demo/blob/master/tutorial/README.md
 - name: Await SSH connection
   command: >
-    ssh -i private_key_aphan1.pem -oBatchMode=yes -oStrictHostKeyChecking=no
+    ssh -i {{ ansible_ssh_private_key_file }}
+    -oBatchMode=yes -oStrictHostKeyChecking=no
     ubuntu@{{ os_instance.openstack.public_v4 }} true
   register: result
   until: result is success

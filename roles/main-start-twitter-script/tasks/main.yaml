@@ -1,3 +1,9 @@
+- name: Install Python packages to execute Twitter script
+  become: yes
+  pip:
+    name: ['tweepy', 'cloudant']
+    state: latest
+
 - name: Copying Twitter script
   copy:
     src: "./tweetBot.py"

@@ -5,10 +5,3 @@
     state: latest
     update_cache: yes
   when: ansible_distribution == "Ubuntu"
-
-- name: Install Python packages to execute Twitter script
-  become: yes
-  pip:
-    name: ['tweepy', 'cloudant']
-    state: latest
-    
