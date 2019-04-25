@@ -1,5 +1,5 @@
 # Twitter Collecting Script
-Uses Python and [Tweepy](https://www.tweepy.org/) package to gather tweets in real-time by through one's Twitter account.
+Uses Python and [Tweepy](https://www.tweepy.org/) and [Cloudant](https://github.com/cloudant/python-cloudant) package to gather tweets in real-time by through one's Twitter account.
 
 Needs to be connected with some database so it can be stored. However, incoming tweets might need to be preprocessed before being stored.
 

@@ -1,0 +1,60 @@
+# Credit to: https://gist.github.com/rbq/886587980894e98b23d0eee2a1d84933
+# Following instructions from: https://docs.docker.com/install/linux/docker-ce/ubuntu/
+
+- name: Install prereqs for Docker
+  become: yes
+  apt:
+    name: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg-agent', 
+           'software-properties-common']
+    state: latest
+    update_cache: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: Add Docker's GPG key
+  become: yes
+  apt_key:
+    url: "https://download.docker.com/linux/ubuntu/gpg"
+
+- name: Add Docker to APT repository
+  apt_repository:
+    repo: >
+            deb [arch=amd64] https://download.docker.com/linux/ubuntu
+            {{ansible_distribution_release}} stable
+
+- name: Install Docker CE
+  become: yes
+  apt:
+    name: ['docker-ce', 'docker-ce-cli', 'containerd.io']
+    state: latest
+
+# Credit to: https://stackoverflow.com/a/28093517 for the idea; the HTTP proxy
+# is not applied immediately to Docker unforunately.
+- name: Add HTTP proxy to Docker
+  block:
+    - stat:
+        path: "{{ dock_path }}/http-proxy.conf"
+      register: stat_ret
+
+    - block:
+        - file:
+            path: "{{ dock_path }}"
+            state: directory
+        - copy:
+            src: "http-proxy.conf"
+            dest: "{{ dock_path }}/http-proxy.conf"
+      when: stat_ret.stat.exists == False
+
+    - debug:
+        msg: "[INFO] Proxy file has already been created for Docker."
+      when: stat_ret.stat.exists
+
+    - command: systemctl daemon-reload
+
+    - service:
+        name: docker
+        state: restarted
+
+  vars:
+    dock_path: "/etc/systemd/system/docker.service.d"
+  become: yes
+  

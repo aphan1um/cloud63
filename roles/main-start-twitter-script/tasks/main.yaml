@@ -1,0 +1,13 @@
+- name: Copying Twitter script
+  copy:
+    src: "./tweetBot.py"
+    dest: "./tweetBot.py"
+    force: yes
+
+# TODO: Credit to https://stackoverflow.com/a/39355842 to allow running in bg
+# TODO: Probably a  better way to do this
+- name: Starting Twitter script
+  shell: >
+          nohup
+          python ./tweetBot.py http://{{ inventory_hostname }}:5984
+          </dev/null >/dev/null 2>&1 &
