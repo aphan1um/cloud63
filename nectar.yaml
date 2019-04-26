@@ -20,16 +20,7 @@
   gather_facts: yes
   vars:
     couchDB_mount_point: "./couchDB_Data"
-  pre_tasks:
-    - name: Prestep - Gather installed packages
-      package_facts:
-        manager: auto
-      register: installed_pkgs
-    
-    - set_fact:
-        python_installed: python in installed_pkgs.packages
-        docker_installed: docker in installed_pkgs.packages
-
+    jsonKeys: "{{ lookup('file', 'api_keys.json') | from_json }}"
   roles:
     - role: vm-set-proxy
       when: ansible_env.http_proxy is not defined
@@ -39,8 +30,6 @@
           - device: "/dev/vdb"
             path: "{{ couchDB_mount_point }}"
     - role: vm-install-python
-      when: python_installed == True
     - role: vm-install-docker
-      when: docker_installed == True
     - role: vm-init-couchdb
     - role: main-start-twitter-script

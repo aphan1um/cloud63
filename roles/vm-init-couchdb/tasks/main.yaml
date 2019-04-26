@@ -39,5 +39,5 @@
           "username": "admin", "password":"admin"}'
   register: admin_ret
   until: admin_ret.stdout == '{"ok":true}'
-  retries: 3
-  delay: 5
+  retries: 5
+  delay: 3

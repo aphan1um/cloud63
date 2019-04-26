@@ -1,14 +1,14 @@
 availability_zone: melbourne-qh2-uom
 
 volumes:
-  - vol_name: twitterGatherer_Vol
-    vol_size: 50
+  - vol_name: testXYZ_Volume
+    vol_size: 10
 # -  vol_name: anotherVolume
 #    vol_size: 10
 
 security_groups:
   - name: demo_ssh
-    description: "Add description here"
+    description: "Allows SSH access"
     protocol: tcp
     port_range_min: 22
     port_range_max: 22
@@ -24,4 +24,4 @@ security_groups:
 instance_image: 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
 instance_key_name: andy # TODO: change this
 instance_flavor: uom.mse.2c9g 
-instance_name: twitterGatherer
+instance_name: testXYZ

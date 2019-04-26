@@ -7,7 +7,6 @@
     name: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg-agent', 
            'software-properties-common']
     state: latest
-    update_cache: yes
   when: ansible_distribution == "Ubuntu"
 
 - name: Add Docker's GPG key
@@ -42,19 +41,25 @@
         - copy:
             src: "http-proxy.conf"
             dest: "{{ dock_path }}/http-proxy.conf"
+
+        - command: systemctl daemon-reload
+        - service:
+            name: docker
+            state: restarted
       when: stat_ret.stat.exists == False
 
     - debug:
         msg: "[INFO] Proxy file has already been created for Docker."
       when: stat_ret.stat.exists
 
-    - command: systemctl daemon-reload
-
-    - service:
-        name: docker
-        state: restarted
-
   vars:
     dock_path: "/etc/systemd/system/docker.service.d"
   become: yes
+
+  # TODO: DEBUG
+- name: DEBUG Stop & remove all docker containers
+  shell: "{{ item }}"
+  with_items:
+    - "docker kill $(docker ps -q)"
+    - "docker rm $(docker ps -a -q)"
   
