@@ -1,0 +1,18 @@
+{"keys":
+    [
+      {
+          "consumer_key": "2znfHb14GLJ2x3RfoftrkQoCU",
+          "consumer_secret": "mT8zKjHNrsQhUE2nKd5Ob4uKppWgIZFFUlTylr1VlTqTFv02WK",
+          "access_key": "1121009594254249986-CuuaCvTUYqjKLS2uBROkk1cQMLDI30",
+          "access_secret": "bqwPb7pyqYiKbMA0qhXrfvc5cKJq7WXI6wsvBCQ0Hay7Y",
+          "name": "CloudTweet63"
+      },
+      {
+          "consumer_key": "N4QfJbAKgt3KICyJxieZbBvcR",
+          "consumer_secret": "A8bAHCHvXoM9v3fzNYHbmSonx4CH5dpgDFKBmuyQuBtRTBIolB",
+          "access_key": "1121009594254249986-2SNwi0X3X7heUFIKyKicVnCZzMLCl3",
+          "access_secret": "NXfgv2H5xMzCiWdtuRo4Ljag0vASwNDd7wGeROjC6rIy1",
+          "name": "CloudTweet63_Secondary"
+      }
+    ]
+  }
