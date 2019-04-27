@@ -1,10 +1,14 @@
 availability_zone: melbourne-qh2-uom
 
 volumes:
-  - vol_name: testXYZ_Volume
-    vol_size: 10
-# -  vol_name: anotherVolume
-#    vol_size: 10
+  manager_Vol:
+    size: 10
+  work1_Vol:
+    size: 10
+  work2_Vol:
+    size: 10
+  work3_Vol:
+    size: 10
 
 security_groups:
   - name: demo_ssh
@@ -23,5 +27,22 @@ security_groups:
 
 instance_image: 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
 instance_key_name: andy # TODO: change this
-instance_flavor: uom.mse.2c9g 
-instance_name: testXYZ
+instance_flavor: uom.mse.2c9g
+
+instances:
+  - name: manager
+    group: managers
+    volumes: ['manager_Vol']
+  - name: worker_1
+    group: workers
+    volumes: ['work1_Vol']
+  - name: worker_2
+    group: workers
+    volumes: ['work2_Vol']
+  - name: worker_3
+    group: workers
+    volumes: ['work3_Vol']
+
+instance_name: testXYZ # TODO: Remove this; kept to make script work
+
+

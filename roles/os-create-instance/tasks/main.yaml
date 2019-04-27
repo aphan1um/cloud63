@@ -1,50 +1,62 @@
 # Create a NecTAR instance
 
-- debug:
-    msg: "Name of instance to be made: {{ instance_name }}"
-
-- name: Create an instance
+- name: Create instance
   os_server:
-    name: '{{ instance_name }}'
+    name: '{{ item.name }}'
     image: '{{ instance_image }}'
     key_name: '{{ instance_key_name }}'
     flavor: '{{ instance_flavor }}'
     availability_zone: '{{ availability_zone }}'
     security_groups: '{{ sg_names }}'
-    volumes: '{{ os_vol_ids }}'
     auto_floating_ip: yes
     wait: yes
     timeout: 600
     state: present
-  register: os_instance
+  register: os_instances
+  loop: "{{ instances }}"
+
+# TODO: Thanks to https://stackoverflow.com/a/41908853 for the idea
+- name: Attach volumes
+  os_server_volume:
+    state: present
+    server: "{{ item.0.name }}"
+    volume: "{{ volumes[item.1].id }}"
+  with_subelements:
+    - "{{ instances }}"
+    - volumes
 
 - debug:
-    msg: "Instance {{ instance_name }} created. IP Address: {{ os_instance.openstack.public_v4 }}"
-  when: os_instance.openstack is defined
+    msg: "Instance created. IP Address: {{ item.openstack.public_v4 }}"
+  when: item.openstack is defined
+  loop: "{{ os_instances.results }}"
+  loop_control:
+    label: "{{ item.openstack.name }}"
 
-# The two actions here are to make sure the private key works
-- name: Preparation - Remove IP from known hosts (to ensure SSH works)
-  known_hosts:
-    state: absent
-    name: '{{ os_instance.openstack.public_v4 }}'
-  become: yes
+- name: Add created instances to inventory
+  add_host:
+    name: '{{ item.openstack.public_v4 }}'
+    groups: "{{ item.item.group }}"
+    ansible_ssh_host: '{{ item.openstack.public_v4 }}'
+  loop: "{{ os_instances.results }}"
+  loop_control:
+    label: "{{ item.item }}"
 
 - name: Preparation - Setting correct permissions for private key
   command: chmod 600 '{{ ansible_ssh_private_key_file }}'
 
   # Credit to: https://github.com/msolberg/openstack-ansible-demo/blob/master/tutorial/README.md
-- name: Await SSH connection
+- name: Await SSH connection for each instance
   command: >
     ssh -i {{ ansible_ssh_private_key_file }}
     -oBatchMode=yes -oStrictHostKeyChecking=no
-    ubuntu@{{ os_instance.openstack.public_v4 }} true
+    ubuntu@{{ item.openstack.public_v4 }} true
   register: result
   until: result is success
   retries: 20
   delay: 15
+  loop_control:
+    label: "{{ item.item }}"
+  loop: "{{ os_instances.results }}"
 
-- name: Add created instance to inventory
-  add_host:
-    name: '{{ os_instance.openstack.public_v4 }}'
-    groups: vms
-    ansible_ssh_host: '{{ os_instance.openstack.public_v4 }}'
+- pause:
+    seconds: 20

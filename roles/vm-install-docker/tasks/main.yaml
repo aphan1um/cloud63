@@ -56,9 +56,12 @@
     dock_path: "/etc/systemd/system/docker.service.d"
   become: yes
 
-  # TODO: DEBUG
+  # An error might occur if there are no containers to kill/remove,
+  # but this won't matter (as long as there are none)
 - name: DEBUG Stop & remove all docker containers
   shell: "{{ item }}"
+  ignore_errors: yes
+  no_log: yes
   with_items:
     - "docker kill $(docker ps -q)"
     - "docker rm $(docker ps -a -q)"

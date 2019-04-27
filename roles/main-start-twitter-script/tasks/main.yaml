@@ -1,7 +1,7 @@
 - name: Install Python packages to execute Twitter script
   become: yes
   pip:
-    name: ['tweepy', 'cloudant', 'ast']
+    name: ['tweepy', 'cloudant']
     state: latest
 
 - name: Copying Twitter script
@@ -15,6 +15,7 @@
 - name: Starting Twitter script
   shell: >
           nohup python ./tweetBot.py
-          http://{{ inventory_hostname }}:5984 "{{ item }}" >{{ item.name }}.out 2>&1 &
+          http://{{ inventory_hostname }}:5984
+          "{{ item }}" >{{ item.name }}.out 2>&1 &
           #</dev/null >/dev/null 2>&1 &
   loop: "{{ jsonKeys['keys'] }}"

@@ -14,7 +14,7 @@
     - role: os-create-instance
     #- role: os-create-volume-snapshots
 
-- hosts: vms
+- hosts: all:!localhost
   remote_user: ubuntu
   become: yes
   gather_facts: yes
@@ -31,5 +31,5 @@
             path: "{{ couchDB_mount_point }}"
     - role: vm-install-python
     - role: vm-install-docker
-    - role: vm-init-couchdb
-    - role: main-start-twitter-script
+    #- role: vm-init-couchdb
+    #- role: main-start-twitter-script
