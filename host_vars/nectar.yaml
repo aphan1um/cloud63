@@ -12,17 +12,43 @@ volumes:
 
 security_groups:
   - name: demo_ssh
-    description: "Allows SSH access"
+    description: "Allows remote SSH access."
+  - name: demo_internal
+    description: "Allows unrestricted access between instances only."
+  - name: demo_fauxton
+    description: "Access Fauxton interface to interact with CouchDB databases."
+
+security_group_rules:
+  - name: demo_ssh
     protocol: tcp
     port_range_min: 22
     port_range_max: 22
     remote_ip_prefix: 0.0.0.0/0 # TODO: fix debug; 128.250.0.0/16 # only ip addresses from unimelb
-  - name: demo_couchdb
-    description: "Gives access to Fauxton"
+  
+  - name: demo_internal
+    remote_group: demo_internal
+    protocol: tcp
+  
+  - name: demo_internal
+    remote_group: demo_internal
+    protocol: udp 
+  
+  - name: demo_internal
+    remote_group: demo_internal
+    protocol: icmp  
+
+  - name: demo_fauxton
     protocol: tcp
     port_range_min: 5984
     port_range_max: 5984
     remote_ip_prefix: 0.0.0.0/0
+  
+  #- name: demo_couchdb
+  #  description: "Gives access to Fauxton"
+  #  protocol: tcp
+  #  port_range_min: 5984
+  #  port_range_max: 5984
+  #  remote_ip_prefix: 0.0.0.0/0
 
 
 instance_image: 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
@@ -34,13 +60,13 @@ instances:
     group: managers
     volumes: ['manager_Vol']
   - name: worker_1
-    group: workers
+    group: ['workers', 'db']
     volumes: ['work1_Vol']
   - name: worker_2
-    group: workers
+    group: ['workers', 'db']
     volumes: ['work2_Vol']
   - name: worker_3
-    group: workers
+    group: ['workers', 'db']
     volumes: ['work3_Vol']
 
 instance_name: testXYZ # TODO: Remove this; kept to make script work

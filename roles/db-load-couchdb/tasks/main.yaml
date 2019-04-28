@@ -1,0 +1,67 @@
+- name: Pull CouchDB docker image.
+  command: docker pull couchdb:2.3.0
+
+# Big credit to https://github.com/AURIN/comp90024/tree/master/couchdb/macos
+# for the idea.
+- name: Load Docker instance.
+  shell: >
+    docker run -d
+    -p 5984:5984 -p 5986:5986 -p 9100-9200:9100-9200 -p 4369:4369
+    -e COUCHDB_USER=user -e COUCHDB_PASSWORD=pass
+    -e NODENAME={{ inventory_hostname }}
+    -v $(pwd)/{{ couchDB_mount_point }}:/opt/couchdb/data
+    couchdb:2.3.0
+
+- name: Wait for CouchDB interface to load up...
+  wait_for:
+    host: "{{ inventory_hostname }}"
+    port: 5984
+    delay: 2
+    timeout: 100
+
+- name: Start cluster setup.
+  command: >
+    curl -X POST
+    "http://user:pass@127.0.0.1:5984/_cluster_setup"
+    -H 'Content-Type: application/json'
+    -d '{"action": "enable_cluster", "bind_address": "0.0.0.0",
+    "username": "user", "password": "pass",
+    "node_count": "{{ host_count }}"}'
+
+- name: Permit master node to configure cluster.
+  block:
+    - name: Initalise other nodes to cluster
+      # Shell and multiple commands: https://stackoverflow.com/a/43543441
+      # Also multiline YAML approaches help: https://yaml-multiline.info/
+      shell: >
+        curl --noproxy '*' -X POST -H 'Content-Type: application/json'
+        "http://user:pass@127.0.0.1:5984/_cluster_setup"
+        -d '{"action": "enable_cluster", "bind_address": "0.0.0.0",
+        "username": "user", "password": "pass", "port": 5984,
+        "node_count": "{{ host_count }}",
+        "remote_node": "{{ item }}",
+        "remote_current_user": "user",
+        "remote_current_password": "pass"}'
+        
+
+        curl --noproxy '*' -X POST -H 'Content-Type: application/json'
+        "http://user:pass@127.0.0.1:5984/_cluster_setup"
+        -d '{"action": "add_node", "host": "{{ item }}",
+        "port": 5984, "username": "user", "password": "pass"}'
+      loop: "{{ groups['db'] }}"
+      when: item != inventory_hostname
+
+    - name: Finish cluster setup
+      command: >
+        curl --noproxy '*' -X POST
+        "http://user:pass@localhost:5984/_cluster_setup"
+        -H 'Content-Type: application/json'
+        -d '{"action": "finish_cluster"}'
+
+    - command: curl --noproxy '*' http://user:pass@localhost:5984/_cluster_setup
+
+    - name: DEBUG Print memberships
+      command: curl --noproxy '*' http://user:pass@{{ item }}:5984/_membership
+      loop: "{{ groups['db'] }}"
+
+  when: inventory_hostname == hostvars['localhost']['couchdb_node_leader']

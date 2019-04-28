@@ -1,4 +1,5 @@
 [all:vars]
+couchDB_mount_point = "./couchDB_Data"
 ansible_ssh_private_key_file = "./private_key_aphan1.pem"
-# avoids "REMOTE HOST IDENTIFICATION" change problem when sshing; not our concern
+# avoids "REMOTE HOST IDENTIFICATION" when ssh'ing
 ansible_ssh_common_args="-oStrictHostKeyChecking=no"

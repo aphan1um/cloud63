@@ -13,13 +13,19 @@
     # now create instances
     - role: os-create-instance
     #- role: os-create-volume-snapshots
+  post_tasks:
+    - debug:
+        msg: "{{ groups['db'] }}"
+    - name: Select random node to be "CouchDB's setup master".
+      set_fact:
+        couchdb_node_leader: "{{ item }}"
+      with_random_choice: "{{ groups['db'] }}"
 
 - hosts: all:!localhost
   remote_user: ubuntu
   become: yes
   gather_facts: yes
   vars:
-    couchDB_mount_point: "./couchDB_Data"
     jsonKeys: "{{ lookup('file', 'api_keys.json') | from_json }}"
   roles:
     - role: vm-set-proxy
@@ -33,3 +39,14 @@
     - role: vm-install-docker
     #- role: vm-init-couchdb
     #- role: main-start-twitter-script
+
+- hosts: db
+  remote_user: ubuntu
+  become: yes
+  gather_facts: yes
+  vars:
+    # Credit to: https://stackoverflow.com/a/36312618 for the code
+    host_count: "{{ groups['db'] | length }}"
+  roles:
+    - role: db-load-couchdb
+  

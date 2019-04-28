@@ -1,6 +1,6 @@
 # Create a NecTAR instance
 
-- name: Create instance
+- name: Create instance(s)
   os_server:
     name: '{{ item.name }}'
     image: '{{ instance_image }}'
@@ -8,6 +8,7 @@
     flavor: '{{ instance_flavor }}'
     availability_zone: '{{ availability_zone }}'
     security_groups: '{{ sg_names }}'
+    network: 'qh2-uom-internal'
     auto_floating_ip: yes
     wait: yes
     timeout: 600
@@ -57,6 +58,3 @@
   loop_control:
     label: "{{ item.item }}"
   loop: "{{ os_instances.results }}"
-
-- pause:
-    seconds: 20
