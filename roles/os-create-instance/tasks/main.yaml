@@ -54,7 +54,7 @@
   register: result
   until: result is success
   retries: 20
-  delay: 15
+  delay: 10
   loop_control:
     label: "{{ item.item }}"
   loop: "{{ os_instances.results }}"

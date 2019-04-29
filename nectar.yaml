@@ -14,12 +14,16 @@
     - role: os-create-instance
     #- role: os-create-volume-snapshots
   post_tasks:
-    - debug:
-        msg: "{{ groups['db'] }}"
     - name: Select random node to be "CouchDB's setup master".
       set_fact:
         couchdb_node_leader: "{{ item }}"
+        # Credit to: https://stackoverflow.com/a/41455193 for random UUIDs.
+        couchdb_secret: "{{ 99999999 | random | to_uuid }}"
+        couchdb_cookie: "{{ 99999999 | random | to_uuid }}"
       with_random_choice: "{{ groups['db'] }}"
+    
+    - debug:
+        msg: "{{ hostvars['localhost'] }}"
 
 - hosts: all:!localhost
   remote_user: ubuntu

@@ -3,16 +3,23 @@
 
 # Big credit to https://github.com/AURIN/comp90024/tree/master/couchdb/macos
 # for the idea.
+# Credit to https://github.com/redgeoff/couchdb-docker-service for howto
+# cookie details. Important for letting nodes to reconnect to cluser
+# after shutdown.
 - name: Load Docker instance.
   shell: >
     docker run -d
     -p 5984:5984 -p 5986:5986 -p 9100-9200:9100-9200 -p 4369:4369
     -e COUCHDB_USER=user -e COUCHDB_PASSWORD=pass
     -e NODENAME={{ inventory_hostname }}
+    -e COUCHDB_SECRET="{{ hostvars['localhost']['couchdb_secret'] }}"
+    -e COUCHDB_COOKIE="{{ hostvars['localhost']['couchdb_cookie'] }}"
     -v $(pwd)/{{ couchDB_mount_point }}:/opt/couchdb/data
+    --restart=always
+    --name couchdb_instance
     couchdb:2.3.0
 
-- name: Wait for CouchDB interface to load up...
+- name: Wait for all CouchDB interfaces to load up...
   wait_for:
     host: "{{ inventory_hostname }}"
     port: 5984
@@ -28,7 +35,7 @@
     "username": "user", "password": "pass",
     "node_count": "{{ host_count }}"}'
 
-- name: Permit master node to configure cluster.
+- name: Permit master node to create cluster.
   block:
     - name: Initalise other nodes to cluster
       # Shell and multiple commands: https://stackoverflow.com/a/43543441
@@ -51,7 +58,7 @@
       loop: "{{ groups['db'] }}"
       when: item != inventory_hostname
 
-    - name: Finish cluster setup
+    - name: Finalise cluster setup
       command: >
         curl --noproxy '*' -X POST
         "http://user:pass@localhost:5984/_cluster_setup"

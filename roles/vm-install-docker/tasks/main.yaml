@@ -26,23 +26,24 @@
     name: ['docker-ce', 'docker-ce-cli', 'containerd.io']
     state: latest
 
-- stat:
+- name: Check if Docker Compose has been installed.
+  stat:
     path: /usr/local/bin/docker-compose
   register: dcompose_file
 
 - block:
   - name: Download Docker Compose
     command: >
-              curl -L
-              https://github.com/docker/compose/releases/download/1.24.0/docker-compose-Linux-x86_64
-              -o /usr/local/bin/docker-compose
+      curl -L
+      https://github.com/docker/compose/releases/download/1.24.0/docker-compose-Linux-x86_64
+      -o /usr/local/bin/docker-compose
 
   - name: Make Docker Compose executable
     command: chmod +x /usr/local/bin/docker-compose
   when: dcompose_file.stat.exists == False
 
-# Credit to: https://stackoverflow.com/a/28093517 for the idea; the HTTP proxy
-# is not applied immediately to Docker unforunately.
+# Credit to: https://stackoverflow.com/a/28093517 for the idea;
+# the HTTP proxy is not applied immediately to Docker unfortunately.
 - name: Add HTTP proxy to Docker
   block:
     - stat:
@@ -62,17 +63,12 @@
             name: docker
             state: restarted
       when: stat_ret.stat.exists == False
-
-    - debug:
-        msg: "[INFO] Proxy file has already been created for Docker."
-      when: stat_ret.stat.exists
-
   vars:
     dock_path: "/etc/systemd/system/docker.service.d"
   become: yes
 
-  # An error might occur if there are no containers to kill/remove,
-  # but this won't matter (as long as there are none)
+  # An error might occur if there're no Docker containers to kill/remove,
+  # but this won't matter, as long as there are none.
 - name: DEBUG Stop & remove all docker containers
   shell: "docker rm --force $(docker ps -aq)"
   ignore_errors: yes
