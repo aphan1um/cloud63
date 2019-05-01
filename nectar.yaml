@@ -17,11 +17,17 @@
     - name: Select random node to be "CouchDB's setup master".
       set_fact:
         couchdb_node_leader: "{{ item }}"
-        # Credit to: https://stackoverflow.com/a/41455193 for random UUIDs.
-        couchdb_secret: "{{ 99999999 | random | to_uuid }}"
-        couchdb_cookie: "{{ 99999999 | random | to_uuid }}"
       with_random_choice: "{{ groups['db'] }}"
+
+    - name: Select random manager node to init swarm.
+      set_fact:
+        docker_swarm_leader: "{{ item }}"
+      with_random_choice: "{{ groups['managers'] }}"
     
+    # Credit to: https://stackoverflow.com/a/41455193 for random UUIDs.
+    #couchdb_secret: "{{ 99999999 | random | to_uuid }}"
+    #couchdb_cookie: "{{ 99999999 | random | to_uuid }}"
+
     - debug:
         msg: "{{ hostvars['localhost'] }}"
 
@@ -46,6 +52,15 @@
   tags:
     - setup_packages
 
+- hosts: all:!localhost
+  remote_user: ubuntu
+  become: yes
+  gather_facts: yes
+  vars:
+    swarm_leader: "{{ hostvars['localhost']['docker_swarm_leader'] }}"
+  roles:
+    - role: docker-start-swarm
+
 - hosts: db
   remote_user: ubuntu
   become: yes
@@ -54,5 +69,5 @@
     # Credit to: https://stackoverflow.com/a/36312618 for the code
     host_count: "{{ groups['db'] | length }}"
   roles:
-    - role: db-load-couchdb
-  
+    - role: db-setup-couchdb
+    

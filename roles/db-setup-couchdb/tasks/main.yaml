@@ -13,16 +13,16 @@
 - name: Empty mounted folder
   shell: "rm -rf ./{{ couchDB_mount_point }}/*"
 
-# TODO: Bug fixed with https://github.com/apache/couchdb-docker/issues/9
-- name: Load Docker instance.
+- name: Start CouchDB Docker container
   shell: >
     docker run
     -v $(pwd)/{{ couchDB_mount_point }}:/opt/couchdb/data
     -e COUCHDB_USER=user -e COUCHDB_PASSWORD=pass
     -e COUCHDB_SECRET="testSecret"
-    -p 5984:5984 -p 5986:5986 -p 9100-9200:9100-9200 -p 4369:4369
-    --name couchdb -d couchdb:2.3.0
+    -p 5984:5984 -p 5986:5986 -p 9100-9200:9100-9200
+    -p 4369:4369 -d --name couchdb couchdb:2.3.0
     -setcookie monster -name couchdb@{{ inventory_hostname }}
+
 
 - name: Wait for all CouchDB interfaces to load up...
   wait_for:
