@@ -43,6 +43,8 @@
     - role: vm-install-docker
     #- role: vm-init-couchdb
     #- role: main-start-twitter-script
+  tags:
+    - setup_packages
 
 - hosts: db
   remote_user: ubuntu
