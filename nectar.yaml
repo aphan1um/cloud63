@@ -6,23 +6,40 @@
   roles:
     # prereq
     - role: os-common
+    - role: os-create-security-groups
+    
     #- role: os-find-images
     # prepare for instance creation
-    - role: os-create-volumes
-    - role: os-create-security-groups
+    #- role: os-create-volumes
     # now create instances
-    - role: os-create-instance
     #- role: os-create-volume-snapshots
+
   post_tasks:
+    - include_role:
+        name: os-create-batch
+      loop: "{{ instances }}"
+      loop_control:
+        loop_var: instance
+
+    # Credit to: https://github.com/msolberg/openstack-ansible-demo/blob/master/tutorial/README.md
+    - name: Await SSH connection for all created/loaded instances.
+      command: >
+        ssh -i {{ ansible_ssh_private_key_file }}
+        -oBatchMode=yes -oStrictHostKeyChecking=no
+        ubuntu@{{ item }} true
+      register: result
+      until: result is success
+      retries: 25
+      delay: 8
+      when: item != "localhost"
+      loop: "{{ groups['all'] }}" # os_instance.openstack.public_v4
+
     - name: Select random node to be "CouchDB's setup master".
       set_fact:
-        couchdb_node_leader: "{{ item }}"
-      with_random_choice: "{{ groups['db'] }}"
-
+        couchdb_node_leader: "{{ groups['db'] | random }}"
     - name: Select random manager node to init swarm.
       set_fact:
-        docker_swarm_leader: "{{ item }}"
-      with_random_choice: "{{ groups['managers'] }}"
+        docker_swarm_leader: "{{ groups['managers'] | random }}"
     
     # Credit to: https://stackoverflow.com/a/41455193 for random UUIDs.
     #couchdb_secret: "{{ 99999999 | random | to_uuid }}"
