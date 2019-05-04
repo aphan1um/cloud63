@@ -1,23 +1,26 @@
-- name: Pull CouchDB docker image.
-  command: docker pull couchdb:2.3.0
-
 # Big credit to https://github.com/AURIN/comp90024/tree/master/couchdb/macos
 # for the idea.
-# Credit to https://github.com/redgeoff/couchdb-docker-service for howto
-# cookie details. Important for letting nodes to reconnect to cluser
-# after shutdown.
-- name: Load Docker instance.
+# Credit to https://github.com/redgeoff/couchdb-docker-service for how-to
+# cookie details. Important for allowing nodes to reconnect to cluser
+# after shutdown/restart.
+
+- name: Empty mounted folder
+  shell: "rm -rf ./{{ couchDB_mount_point }}/*"
+
+- name: Copy local configuration file (cookie authentication) for CouchDB.
+  copy:
+    src: docker.ini
+    dest: ./docker.ini
+
+- name: Start CouchDB Docker container
   shell: >
-    docker run -d
-    -p 5984:5984 -p 5986:5986 -p 9100-9200:9100-9200 -p 4369:4369
-    -e COUCHDB_USER=user -e COUCHDB_PASSWORD=pass
-    -e NODENAME={{ inventory_hostname }}
-    -e COUCHDB_SECRET="{{ hostvars['localhost']['couchdb_secret'] }}"
-    -e COUCHDB_COOKIE="{{ hostvars['localhost']['couchdb_cookie'] }}"
+    docker run
     -v $(pwd)/{{ couchDB_mount_point }}:/opt/couchdb/data
-    --restart=always
-    --name couchdb_instance
-    couchdb:2.3.0
+    -v $(pwd)/docker.ini:/opt/couchdb/etc/local.d/docker.ini
+    -p 5984:5984 -p 5986:5986 -p 9100-9200:9100-9200
+    -p 4369:4369 -d --name couchdb couchdb:2.3.0
+    -setcookie monster -name couchdb@{{ inventory_hostname }}
+
 
 - name: Wait for all CouchDB interfaces to load up...
   wait_for:
@@ -65,10 +68,16 @@
         -H 'Content-Type: application/json'
         -d '{"action": "finish_cluster"}'
 
-    - command: curl --noproxy '*' http://user:pass@localhost:5984/_cluster_setup
+    # - command: curl --noproxy '*' http://user:pass@localhost:5984/_cluster_setup
 
-    - name: DEBUG Print memberships
-      command: curl --noproxy '*' http://user:pass@{{ item }}:5984/_membership
-      loop: "{{ groups['db'] }}"
+    # - name: DEBUG Print memberships
+    #   command: curl --noproxy '*' http://user:pass@{{ item }}:5984/_membership
+    #   loop: "{{ groups['db'] }}"
 
   when: inventory_hostname == hostvars['localhost']['couchdb_node_leader']
+
+#- name: Ensure all CouchDB nodes have the same hashed password.
+#  replace:
+#    path: ./docker.ini
+#    regexp: "^user = (.*)$"
+#    replace: "user = -pbkdf2-b6e8e563a89bfc37c47cd191927327a19039a6d0,ea0521454095d281197e871c06d514d4,10"

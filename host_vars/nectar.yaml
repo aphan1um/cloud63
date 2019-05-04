@@ -1,13 +1,9 @@
 availability_zone: melbourne-qh2-uom
 
-volumes:
-  manager_Vol:
+volume_templates:
+  volManager:
     size: 10
-  work1_Vol:
-    size: 10
-  work2_Vol:
-    size: 10
-  work3_Vol:
+  volWork:
     size: 10
 
 security_groups:
@@ -57,18 +53,12 @@ instance_flavor: uom.mse.2c9g
 
 instances:
   - name: manager
-    group: managers
-    volumes: ['manager_Vol']
-  - name: worker_1
-    group: ['workers', 'db']
-    volumes: ['work1_Vol']
-  - name: worker_2
-    group: ['workers', 'db']
-    volumes: ['work2_Vol']
-  - name: worker_3
-    group: ['workers', 'db']
-    volumes: ['work3_Vol']
-
-instance_name: testXYZ # TODO: Remove this; kept to make script work
+    amount: 1
+    groups: managers
+    volumes: ['volManager']
+  - name: worker
+    amount: 3
+    groups: ['workers', 'db']
+    volumes: ['volWork']
 
 
