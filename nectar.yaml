@@ -69,14 +69,27 @@
   tags:
     - setup_packages
 
+
+#########################   DOCKER SWARM INIT:   ###########################
+
 - hosts: all:!localhost
   remote_user: ubuntu
   become: yes
   gather_facts: yes
   vars:
     swarm_leader: "{{ hostvars['localhost']['docker_swarm_leader'] }}"
+  pre_tasks:
+    - name: DEBUG Stop & remove all docker containers
+      shell: "docker rm --force $(docker ps -aq)"
+      ignore_errors: yes
+
+    - name: DEBUG Stop all docker services
+      shell: "docker service rm $(docker service ls -q)"
+      ignore_errors: yes
   roles:
     - role: docker-start-swarm
+  tags:
+    - swarm
 
 - hosts: db
   remote_user: ubuntu
@@ -86,5 +99,19 @@
     # Credit to: https://stackoverflow.com/a/36312618 for the code
     host_count: "{{ groups['db'] | length }}"
   roles:
-    - role: db-setup-couchdb
-    
+    - role: db-setup-couchdb 
+  tags:
+    - couchdb
+  
+- hosts: "{{ hostvars['localhost']['docker_swarm_leader'] }}"
+  remote_user: ubuntu
+  become: yes
+  gather_facts: yes
+  vars:
+    ha_port_proxy: 5700
+    ha_replicas: 2
+  roles:
+    - role: docker-couchdb-haproxy
+  tags:
+    - swarm
+    - couchdb
