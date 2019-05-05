@@ -7,12 +7,6 @@
     # prereq
     - role: os-common
     - role: os-create-security-groups
-    
-    #- role: os-find-images
-    # prepare for instance creation
-    #- role: os-create-volumes
-    # now create instances
-    #- role: os-create-volume-snapshots
 
   post_tasks:
     - include_role:
@@ -45,9 +39,6 @@
     #couchdb_secret: "{{ 99999999 | random | to_uuid }}"
     #couchdb_cookie: "{{ 99999999 | random | to_uuid }}"
 
-    - debug:
-        msg: "{{ hostvars['localhost'] }}"
-
 - hosts: all:!localhost
   remote_user: ubuntu
   become: yes
@@ -62,6 +53,8 @@
         mounts:
           - device: "/dev/vdb"
             path: "{{ couchDB_mount_point }}"
+      when: inventory_hostname in groups['db']
+
     - role: vm-install-python
     - role: vm-install-docker
     #- role: vm-init-couchdb
@@ -112,6 +105,7 @@
     ha_replicas: 2
   roles:
     - role: docker-couchdb-haproxy
+    - role: docker-start-visualizer
   tags:
     - swarm
     - couchdb

@@ -40,7 +40,7 @@
     msg: "Instance created. IP Address: {{ os_instance.openstack.public_v4 }}"
   when: os_instance.openstack is defined
 
-- name: Add created instances to inventory
+- name: Add groups to created instance.
   add_host:
     name: '{{ os_instance.openstack.public_v4 }}'
     groups: "{{ instance.groups }}"

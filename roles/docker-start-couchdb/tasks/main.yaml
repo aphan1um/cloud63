@@ -1,0 +1,7 @@
+- name: Copy docker-compose.yml for CouchDB
+  copy:
+    src: docker-compose-couchdb.yml
+    dest: docker-compose-couchdb.yml
+
+- name: Start CouchDB service for all DB labelled VM instances.
+  command: docker stack deploy -c docker-compose-couchdb.yml db

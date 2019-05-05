@@ -3,8 +3,8 @@ availability_zone: melbourne-qh2-uom
 volume_templates:
   volManager:
     size: 10
-  volWork:
-    size: 10
+  volDatabase:
+    size: 75
 
 security_groups:
   - name: demo_ssh
@@ -55,10 +55,10 @@ instances:
   - name: manager
     amount: 1
     groups: managers
-    volumes: ['volManager']
+    volumes: []
   - name: worker
     amount: 3
     groups: ['workers', 'db']
-    volumes: ['volWork']
+    volumes: ['volDatabase']
 
 
