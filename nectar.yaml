@@ -103,6 +103,7 @@
   vars:
     ha_port_proxy: 5700
     ha_replicas: 2
+    dock_vis_port: 8080
   roles:
     - role: docker-couchdb-haproxy
     - role: docker-start-visualizer

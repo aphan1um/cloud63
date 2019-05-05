@@ -4,10 +4,10 @@
 # cookie details. Important for allowing nodes to reconnect to cluser
 # after shutdown/restart.
 
-- name: Empty mounted folder
+- name: DEBUG Empty mounted folder
   shell: "rm -rf ./{{ couchDB_mount_point }}/*"
 
-- name: Copy local configuration file (cookie authentication) for CouchDB.
+- name: Copy local configuration file for CouchDB.
   copy:
     src: docker.ini
     dest: ./docker.ini
