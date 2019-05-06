@@ -40,28 +40,18 @@ def start_realtime():
     myStreamListener = SimpleStreamListener()
     myStream = tweepy.Stream(auth = api.auth, listener = myStreamListener)
     # this starts the real-time listener
-    myStream.filter(locations = bounding_box, is_async = True)
+    myStream.filter(locations = bounding_box, track = ['hamburger', 'pizza'] is_async = False)
 
-api = get_auth()
+def start_api_search():
+    query = 'soda OR butter OR "potato chips" OR "coca cola" OR cookie OR pastry OR unhealthy OR cake OR sugary'
+    geoc = "-36.565842,145.043926,442km"
+    total_tweets_counted = 0
+    total_tweets_accepted = 0
 
-db_url = "http://user:pass@127.0.0.1:5700/"
-server = couchdb.Server(db_url)
-tweetDB = server["twit"]
+    for tweet in limit_handled(tweepy.Cursor(api.search, q=query, lang='en', geocode=geoc, tweet_mode='extended').items()):
+        doc = tweet
 
-
-#########################    MAIN CODE HERE    #########################
-
-query = 'soda OR butter OR "potato chips" OR "coca cola" OR cookie OR pastry OR unhealthy OR cake OR sugary'
-geoc = "-36.565842,145.043926,442km"
-total_tweets_counted = 0
-total_tweets_accepted = 0
-
-print("Starting script...")
-
-for tweet in limit_handled(tweepy.Cursor(api.search, q=query, lang='en', geocode=geoc, tweet_mode='extended').items()):
-    doc = tweet
-
-    if tweet.place is not None or tweet.geo is not None or tweet.coordinates is not None:
+        #if tweet.place is not None or tweet.geo is not None or tweet.coordinates is not None:
         doc._json['_id'] = doc._json['id_str']
         total_tweets_counted += 1
 
@@ -72,8 +62,21 @@ for tweet in limit_handled(tweepy.Cursor(api.search, q=query, lang='en', geocode
         else:
             print("Tweet accepted: %s" % doc._json['_id'])
             total_tweets_accepted += 1
-    else:
-        print("Skipped tweet: %s" % doc._json['id'])
+        #else:
+        #    print("Skipped tweet: %s" % doc._json['id'])
+
+api = get_auth()
+
+db_url = "http://user:pass@127.0.0.1:5700/"
+server = couchdb.Server(db_url)
+tweetDB = server["twit"]
+
+
+#########################    MAIN CODE HERE    #########################
+
+print("Starting script...")
+
+start_realtime()
 
 
 print("Ending script... Counted: %d\tAccepted: %d" % (total_tweets_counted, total_tweets_accepted))
