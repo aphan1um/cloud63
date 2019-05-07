@@ -41,5 +41,5 @@ def retry_save(db, id, init_doc, f_edit, f_state):
             f_state(added, doc['_id'])
 
     
-    return doc if doc is not None else db.get(str(id))
+    return (doc if doc is not None else db.get(str(id)), added)
 

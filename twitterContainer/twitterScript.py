@@ -89,7 +89,6 @@ def find_user_location(loc_str, db_geocodes):
                 'state': geoc.raw['attributes']['RegionAbbr']}
 
     def f_edit(doc):
-        print("Aliases:", doc['aliases'])
         if loc_str_norm in doc['aliases']:
             print("[WARNING] Loc already in alias")
             return None
@@ -125,7 +124,7 @@ def find_user_location(loc_str, db_geocodes):
         break
 
     doc = retry_save(db_geocodes, approx_loc.address, f_init(approx_loc),
-                     f_edit, None)
+                     f_edit, None)[0]
 
     return doc
 
@@ -133,26 +132,32 @@ def find_user_location(loc_str, db_geocodes):
 def update_query_state(query_doc, last_tweet_ids, db_query, db_geocodes):
     new_time = time.time()
 
+    print("Updating timestamp...")
+
     def f_edit(doc):
-        if float(doc['last_ran']) > new_time:
-            return None
+        # TODO: This makes sense?
+        #if float(doc['last_ran']) > new_time:
+        #    print("Problem")
+        #    return None
 
         num_new = 0
         if 'since_ids' not in doc:
             doc['since_ids'] = {}
-
+            num_new += 1
+        
         for term, since_id in last_tweet_ids.items():
             if term in doc['since_ids']:
                 old_since_id = int(doc['since_ids'][term])
                 if since_id > old_since_id:
-                    doc['since_ids'][term] = since_id
+                    doc['since_ids'][term] = str(since_id)
                     num_new += 1
             else:
-                doc['since_ids'][term] = since_id
+                doc['since_ids'][term] = str(since_id)
+                num_new += 1
 
         if num_new == 0:
             return None
-            
+
         return doc
 
     retry_save(db_query, query_doc['_id'], None, f_edit, None)
@@ -167,9 +172,9 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
     # 1. We're guaranteed to at least have a user location, since
     #    we're filtering through Twitter SEARCH API (geocode)
     #
-
     def f_init(tweet):
-        # TODO: Should we import all of the data
+        # TODO: Should we import all of the data?
+        # TODO: Any preprocessing we need to do?
         doc = tweet._json
 
         # add meta data
@@ -186,10 +191,11 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
         if location_doc is None:
             return None
 
-        doc['loc_norm'] = find_user_location(loc_str, db_geocodes)
+        doc['loc_norm'] = location_doc
         return doc
 
     def f_edit(tweet):
+        # TODO: Fix this
         return None
     
     def f_state(added, doc_id):
@@ -197,16 +203,19 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
             print("Tweet already added:\t", doc_id)
         else:
             print("Tweet accepted:\t", doc_id)
-
+        
     queries = query_doc["abbrev"] + [query_doc['_id']]
-    print("Queries (including abbrevs):\t", queries)
+    print("Queries (including abbrevs):\t%s" % queries)
     new_since_ids = defaultdict(int)
 
+    total_tweets_iter = 0
+    total_tweets_added = 0
+
     for word in queries:
-        print("Querying word:\t", word)
+        print("** Now querying term:\t%s" % word)
         
         if 'since_ids' in query_doc and word in query_doc['since_ids']:
-            since_id = int(query_doc['since_ids']['word'])
+            since_id = int(query_doc['since_ids'][word])
         else:
             since_id = 0
         
@@ -216,16 +225,22 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
 
         #if tweet.place is not None or tweet.geo is not None or tweet.coordinates is not None:
         for tweet in limit_handled(cur):
+            print("Processing tweet ID:\t%d" % tweet.id)
+            total_tweets_iter += 1
             init_doc = f_init(tweet)
 
             if init_doc is not None:
-                retry_save(db_tweets, tweet.id, f_init(tweet), f_edit, f_state)
+                doc, added = retry_save(db_tweets, tweet.id, init_doc, f_edit, f_state)
+                if added:
+                    total_tweets_added += 1
+                print("Tweet added status:\t%s" % added)
+
             new_since_ids[word] = max(new_since_ids[word], tweet._json['id_str'])
 
     # at the end update query details
     update_query_state(query_doc, new_since_ids, db_query, db_geocodes)
 
-    print("Finished query ID: %s" % query_doc['_id'])
+    print("Finished query ID (%d/%d)): %s" % (total_tweets_added, total_tweets_iter, query_doc['_id']))
 
 
 #########################    MAIN CODE BELOW    #########################
