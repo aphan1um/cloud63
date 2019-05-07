@@ -104,29 +104,29 @@ def find_user_location(loc_str, db_geocodes):
                             limit=1, sorted='false')
     view_query = [i for i in view]
 
-    # if the location name/alias has already been 'cached' in DB
-    if len(view_query) > 0:
-        print("Already added geocode...")
-        return view_query[0].id
+    # if location isn't DB stored, have to find via ArcGIS (geocoder service)
+    if len(view_query) == 0:
+        # TODO: Crap code, but it kinda ensures we get position in Australia
+        if 'Australia' not in loc_str:
+            loc_str += " Australia"
 
-    # ... if not, we have to find via ArcGIS (a geocoder service)
-    
-    # TODO: Crap code, but it kinda ensures we get position in Australia
-    if 'Australia' not in loc_str:
-        loc_str += " Australia"
+        # RETRY LIMIT?
+        while True:
+            try:
+                approx_loc = arcgis.geocode(loc_str, out_fields=["RegionAbbr"])
+            except geopy.exc.GeocoderTimedOut:
+                sleep(0.5) # wait until we query ArcGIS again
+                continue
+            break
 
-    # RETRY LIMIT?
-    while True:
-        try:
-            approx_loc = arcgis.geocode(loc_str, out_fields=["RegionAbbr"])
-        except geopy.exc.GeocoderTimedOut:
-            continue
-        break
+        doc = retry_save(db_geocodes, approx_loc.address, f_init(approx_loc),
+                        f_edit, None)[0]
 
-    doc = retry_save(db_geocodes, approx_loc.address, f_init(approx_loc),
-                     f_edit, None)[0]
-
-    return doc
+        # TODO: Adhoc fix
+        return (approx_loc.address, approx_loc.raw['attributes']['RegionAbbr'] == "VIC")
+    else:
+        print("[NOTE] Geocode already added.")     
+        return (view_query[0].id, view_query[0].value)
 
 
 def update_query_state(query_doc, last_tweet_ids, db_query, db_geocodes):
@@ -187,11 +187,11 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
             loc_str = doc['user']['location']
             
         
-        location_doc = find_user_location(loc_str, db_geocodes)
-        if location_doc is None:
+        loc_nor_name, is_vic = find_user_location(loc_str, db_geocodes)
+        if not is_vic:
             return None
 
-        doc['loc_norm'] = location_doc
+        doc['loc_norm'] = loc_nor_name
         return doc
 
     def f_edit(tweet):
@@ -225,7 +225,7 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
 
         #if tweet.place is not None or tweet.geo is not None or tweet.coordinates is not None:
         for tweet in limit_handled(cur):
-            print("Processing tweet ID:\t%d" % tweet.id)
+            print("\nProcessing tweet ID:\t%d" % tweet.id)
             total_tweets_iter += 1
             init_doc = f_init(tweet)
 
@@ -240,7 +240,7 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
     # at the end update query details
     update_query_state(query_doc, new_since_ids, db_query, db_geocodes)
 
-    print("Finished query ID (%d/%d)): %s" % (total_tweets_added, total_tweets_iter, query_doc['_id']))
+    print("Finished query (%d/%d tweets added)): %s" % (total_tweets_added, total_tweets_iter, query_doc['_id']))
 
 
 #########################    MAIN CODE BELOW    #########################

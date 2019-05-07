@@ -10,8 +10,8 @@ def limit_handled(cursor):
         try:
             yield cursor.next()
         except tweepy.RateLimitError as e:
-            print("[WARNING] Rate limit hit! Now waiting for %d mins..."
-                  % RATE_LIMIT_WAIT)
+            print("[WARNING] Rate limit hit! Now waiting for %.1f mins..."
+                  % (RATE_LIMIT_WAIT/60.0))
             time.sleep(RATE_LIMIT_WAIT)
 
 def retry_save(db, id, init_doc, f_edit, f_state):
