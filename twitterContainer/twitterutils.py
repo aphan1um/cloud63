@@ -31,11 +31,13 @@ def retry_save(db, id, init_doc, f_edit, f_state):
     doc = None
 
     while not added:
-        if db.get(str(id)) is None:
+        retrieved_doc = db.get(str(id))
+
+        if retrieved_doc is None:
             doc = init_doc
             doc['_id'] = str(id)
         else:
-            new_doc = f_edit(db.get(str(id)))
+            new_doc = f_edit(retrieved_doc)
             if new_doc is None:
                 break
             else:
@@ -92,7 +94,7 @@ def find_user_location(loc_str, db_geocodes, arcgis):
         if 'Australia' not in loc_str:
             loc_str += " Australia"
 
-        # RETRY LIMIT?
+        # TODO: RETRY LIMIT?
         while True:
             try:
                 approx_loc = arcgis.geocode(loc_str, out_fields=["RegionAbbr"])
@@ -143,7 +145,9 @@ def prepare_twitter_doc(tweet, query_doc, current_term, db_geocodes, arcgis):
     # 'geo' JSON field is deprecated; use 'coordinates' instead
     # 'coordinates' is in (long, lat) format; want it the other way
     if 'coordinates' in orig_tweet and orig_tweet['coordinates'] is not None:
-        new_doc['coordinates'] = loc_str['coordinates'][::-1]
+        if 'coordinates' in orig_tweet['coordinates'] and orig_tweet['coordinates']['type'] == 'Point':
+            print("GOT SOMETHING")
+            new_doc['coordinates'] = doc['coordinates']['coordinates'][::-1]
     
     # 'normalise' location string
     loc_nor_name, is_vic = find_user_location(loc_str, db_geocodes, arcgis)
@@ -157,15 +161,24 @@ def prepare_twitter_doc(tweet, query_doc, current_term, db_geocodes, arcgis):
     new_doc['meta_general'] = query_doc['meta_general']
 
     # specific metadata for searched query/term is optional
-    if 'meta_query' in query_doc and  current_term in query_doc['meta_query']:
+    if 'meta_query' in query_doc and current_term in query_doc['meta_query']:
         new_doc['meta_query'] = dict(query_doc['meta_query'][current_term],
                                     **{'query': current_term})
 
     return new_doc
 
-def modify_twitter_doc(tweet):
-    # TODO: Fix this
-    return None
+def modify_twitter_doc(query_doc, curr_term):
+    def wrapper_f(doc):
+        if not 'meta_general' in query_doc or query_doc['meta_general']['version'] <= doc['meta_general']['version']:
+            return None
+        
+        doc['meta_general'] = query_doc['meta_general']
+        if 'meta_query' in query_doc and curr_term in query_doc['meta_query']:
+            doc['meta_query'] = dict(query_doc['meta_query'][current_term], **{'query': current_term})
+        
+        return doc
+
+    return wrapper_f
 
 def notify_twit_save_status(added, doc_id):
     if not added:

@@ -17,6 +17,8 @@ MAX_QUERIES = 6
 GEO_RADIAL = "-36.565842,145.043926,442km"
 TWEET_LANGUAGE = 'en'
 SEARCH_TWEET_AMOUNT = 25 # TODO: MAKE THIS BIGGER FOR DEBUGGING
+TIMEWAIT_AFTER_QUERY = 5
+TIMEWAIT_NO_QUERIES_FOUND = 10
 
 arcgis = geopy.ArcGIS(username="aphan1um", password="andyphan1",
                       referer="cloudteam63")
@@ -29,6 +31,7 @@ def get_auth():
 
 def find_query(db_queries):
     chosen_doc = None
+    attempts_made = 0
 
     print("Preparing to choose a query to search...")
 
@@ -42,8 +45,9 @@ def find_query(db_queries):
         all_queries = [q for q in view]
 
         if len(all_queries) == 0:
-            print("No idle queries to use for search. Waiting...")
-            sleep(10)
+            print("[#%d] No idle queries available. Waiting %ds..." % (attempts_made, TIMEWAIT_NO_QUERIES_FOUND))
+            attempts_made += 1
+            sleep(TIMEWAIT_NO_QUERIES_FOUND)
             continue
 
         # select random query
@@ -66,38 +70,38 @@ def find_query(db_queries):
     
     return new_doc
 
-def update_query_state(query_doc, last_tweet_ids, db_query, db_geocodes):
+def update_query_state(query_doc, db_query, db_geocodes,
+                       last_tweet_ids=None):
     print("Updating timestamp...")
 
     def f_edit(doc):
         update = False
-
+        print(type(doc), doc)
         # update time
         new_time = time.time()
         if new_time > float(doc['last_ran']):
-            print("Time got update: %f" % float(doc['last_ran']))
             doc['last_ran'] = str(new_time)
             update = True
 
-        num_new = 0
-        if 'since_ids' not in doc:
-            doc['since_ids'] = {}
-            num_new += 1
-        
-        for term, since_id in last_tweet_ids.items():
-            if term in doc['since_ids']:
-                old_since_id = int(doc['since_ids'][term])
-                if since_id > old_since_id:
+        if last_tweet_ids is not None:
+            num_new = 0
+            if 'since_ids' not in doc:
+                doc['since_ids'] = {}
+                num_new += 1
+            
+            for term, since_id in last_tweet_ids.items():
+                if term in doc['since_ids']:
+                    old_since_id = int(doc['since_ids'][term])
+                    if since_id > old_since_id:
+                        doc['since_ids'][term] = str(since_id)
+                        num_new += 1
+                else:
                     doc['since_ids'][term] = str(since_id)
                     num_new += 1
-            else:
-                doc['since_ids'][term] = str(since_id)
-                num_new += 1
 
-        if num_new > 0:
-            update = True
+            if num_new > 0:
+                update = True
 
-        print("Updating document?\t%s" % update)
         return doc if update else None
 
     retry_save(db_query, query_doc['_id'], None, f_edit, None)
@@ -141,7 +145,7 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
             if init_doc is not None:
                 doc, added = retry_save(db_tweets, tweet.id,
                                         init_doc,
-                                        modify_twitter_doc,
+                                        modify_twitter_doc(query_doc, word),
                                         notify_twit_save_status)
                 if added:
                     total_tweets_added += 1
@@ -151,7 +155,8 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
                                       tweet._json['id_str'])
 
     # at the end update query details
-    update_query_state(query_doc, new_since_ids, db_query, db_geocodes)
+    update_query_state(query_doc, db_query, db_geocodes,
+                       last_tweet_ids=new_since_ids)
 
     print("Finished query (%d/%d tweets added)): %s" %
           (total_tweets_added, total_tweets_iter, query_doc['_id']))
@@ -170,12 +175,12 @@ db_tweets = server["tweets_new"]
 db_geocodes = server["geocodes"]
 db_queries = server["tweet_queries"]
 
+
 while True:
     query_doc = find_query(db_queries)
     execute_api_search(query_doc, db_tweets, db_queries, db_geocodes)
 
-    print("Sleeping a bit...")
-    sleep(3) # 3 second sleep
+    print("Sleeping for %d seconds" % TIMEWAIT_AFTER_QUERY)
+    sleep(TIMEWAIT_AFTER_QUERY) # 5 second sleep
 
-start_api_search()
 print("Ending script...")

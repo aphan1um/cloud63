@@ -25,7 +25,7 @@ def start_realtime():
     myStreamListener = SimpleStreamListener()
     myStream = tweepy.Stream(auth = api.auth, listener = myStreamListener)
     # this starts the real-time listener
-    myStream.filter(locations = bounding_box, track = ['hamburger', 'pizza'] is_async = False)
+    myStream.filter(track = ['hamburger', 'pizza'], is_async = False)
 
 def get_auth():
     auth = tweepy.OAuthHandler('2znfHb14GLJ2x3RfoftrkQoCU', 'mT8zKjHNrsQhUE2nKd5Ob4uKppWgIZFFUlTylr1VlTqTFv02WK')
@@ -37,4 +37,7 @@ def get_auth():
 api = get_auth()
 db_url = "http://user:pass@127.0.0.1:5700/"
 server = couchdb.Server(db_url)
-tweetDB = server["twit"]
+tweetDB = server["debug"]
+
+print("Starting realtime...")
+start_realtime()
