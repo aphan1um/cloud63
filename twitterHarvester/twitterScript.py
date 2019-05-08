@@ -1,23 +1,24 @@
 # NOTE: Requires tweepy and couchdb packages (use pip to install)
 # TODO: Handle TweepError from Tweepy API [ERROR HANDLING]
 #
-import tweepy
-import couchdb
+import tweepy, couchdb
 import time
 import geopy
+import os
 from time import sleep
 from random import randint
 from twitterutils import *
 from collections import defaultdict
 
 ########################   ADD CONSTANTS HERE:   ######################
-THRESHOLD = 60 * 50     # 50 minutes
+THRESHOLD = 60 * 70     # 1hr10 minutes
 MAX_QUERIES = 6
 GEO_RADIAL = "-36.565842,145.043926,442km"
 TWEET_LANGUAGE = 'en'
 SEARCH_TWEET_AMOUNT = 1000 # TODO: MAKE THIS BIGGER FOR DEBUGGING
 TIMEWAIT_AFTER_QUERY = 5
 TIMEWAIT_NO_QUERIES_FOUND = 8
+UPDATE_TIMESTAMP_PERIOD = 400
 
 arcgis = geopy.ArcGIS(username="aphan1um", password="andyphan1",
                       referer="cloudteam63")
@@ -70,17 +71,22 @@ def find_query(db_queries):
     return new_doc
 
 def update_query_state(query_doc, db_query, db_geocodes,
-                       last_tweet_ids=None, amount_added=0, amount_recv=1):
-    print("Updating timestamp...")
-
+                       last_tweet_ids=None, amount_added=0, amount_recv=0):
     def f_edit(doc):
         update = False
 
         # update time (if the query received a lot of results, search it
         # again)
-        new_time = time.time() - THRESHOLD * (1 - amount_added/(amount_recv + 15))
+        
+        if amount_added > 0 and amount_recv > 0:
+            proportion_accepted = amount_added/(amount_recv + 1)
+            new_time = time.time() - THRESHOLD * proportion_accepted
+        else:
+            new_time = time.time()
+        
         if new_time > float(doc['last_ran']):
             doc['last_ran'] = str(new_time)
+            print("Planned timestamp update to:\t%.2f" % new_time)
             update = True
 
         if amount_added > 0:
@@ -145,6 +151,9 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes, api):
         for tweet in limit_handled(cur, api):
             print("\nProcessing tweet ID:\t%d" % tweet.id)
             total_tweets_iter += 1
+            if total_tweets_iter % UPDATE_TIMESTAMP_PERIOD == 0:
+                update_query_state(query_doc, db_query, db_geocodes)
+            
             init_doc = prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis)
 
             if init_doc is not None:
