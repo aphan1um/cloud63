@@ -5,9 +5,8 @@
 import tweepy
 import couchdb
 import time
-import pytz, geopy
+import geopy
 from time import sleep
-from datetime import datetime
 from random import randint
 from twitterutils import *
 from collections import defaultdict
@@ -28,18 +27,6 @@ def get_auth():
     auth.set_access_token('1121009594254249986-CuuaCvTUYqjKLS2uBROkk1cQMLDI30', 'bqwPb7pyqYiKbMA0qhXrfvc5cKJq7WXI6wsvBCQ0Hay7Y')
     return tweepy.API(auth)
 
-
-def normalise_createdat(str_date):
-    # Credit to: https://stackoverflow.com/a/18736802 for the snippet.
-    ret_date = datetime.strptime(str_date, 
-                                '%a %b %d %H:%M:%S +0000 %Y').replace(tzinfo=pytz.UTC)
-    
-    # turn it into a list to make it easy to search through
-    # CouchDB's view queries
-    return [ret_date.year, ret_date.month, ret_date.day,
-            ret_date.hour, ret_date.minute, ret_date.second]
-
-
 def find_query(db_queries):
     chosen_doc = None
 
@@ -48,10 +35,11 @@ def find_query(db_queries):
     # in the query database section, look for a phrase/term which hasn't
     # been searched for a while or not at all.
     while True:
-        startTime = str(time.time() - THRESHOLD)
+        startTime = time.time() - THRESHOLD
         view = db_queries.view("queryDD/last_ran",
-                    startkey=str(startTime), descending='true', limit=MAX_QUERIES)
-        all_queries = [q.id for q in view]
+                    startkey=str(startTime), descending='true',
+                    limit=MAX_QUERIES)
+        all_queries = [q for q in view]
 
         if len(all_queries) == 0:
             print("No idle queries to use for search. Waiting...")
@@ -59,7 +47,8 @@ def find_query(db_queries):
             continue
 
         # select random query
-        chosen_query = all_queries[randint(0, len(all_queries)) - 1]
+        rand_idx = randint(0, len(all_queries)) - 1
+        chosen_query = all_queries[rand_idx].id
 
         # now attempt to update value
         new_doc = db_queries[chosen_query]
@@ -77,68 +66,18 @@ def find_query(db_queries):
     
     return new_doc
 
-def norm_location(loc_str):
-    return loc_str.lower().replace(',', '')
-
-def find_user_location(loc_str, db_geocodes):
-    loc_str_norm = norm_location(loc_str)
-
-    def f_init(geoc):
-        return {'position': [geoc.latitude, geoc.longitude],
-                'aliases':  list(set([loc_str_norm, norm_location(geoc.address)])),
-                'state': geoc.raw['attributes']['RegionAbbr']}
-
-    def f_edit(doc):
-        if loc_str_norm in doc['aliases']:
-            print("[WARNING] Loc already in alias")
-            return None
-
-        doc['aliases'] += [loc_str_norm] 
-        
-        return doc
-
-    print("\nQuerying place:\t%s" % (loc_str_norm))
-
-    # QUERY FIRST
-    view = db_geocodes.view('locnames/names', key=loc_str_norm,
-                            limit=1, sorted='false')
-    view_query = [i for i in view]
-
-    # if location isn't DB stored, have to find via ArcGIS (geocoder service)
-    if len(view_query) == 0:
-        # TODO: Crap code, but it kinda ensures we get position in Australia
-        if 'Australia' not in loc_str:
-            loc_str += " Australia"
-
-        # RETRY LIMIT?
-        while True:
-            try:
-                approx_loc = arcgis.geocode(loc_str, out_fields=["RegionAbbr"])
-            except geopy.exc.GeocoderTimedOut:
-                sleep(0.5) # wait until we query ArcGIS again
-                continue
-            break
-
-        doc = retry_save(db_geocodes, approx_loc.address, f_init(approx_loc),
-                        f_edit, None)[0]
-
-        # TODO: Adhoc fix
-        return (approx_loc.address, approx_loc.raw['attributes']['RegionAbbr'] == "VIC")
-    else:
-        print("[NOTE] Geocode already added.")     
-        return (view_query[0].id, view_query[0].value)
-
-
 def update_query_state(query_doc, last_tweet_ids, db_query, db_geocodes):
-    new_time = time.time()
-
     print("Updating timestamp...")
 
     def f_edit(doc):
-        # TODO: This makes sense?
-        #if float(doc['last_ran']) > new_time:
-        #    print("Problem")
-        #    return None
+        update = False
+
+        # update time
+        new_time = time.time()
+        if new_time > float(doc['last_ran']):
+            print("Time got update: %f" % float(doc['last_ran']))
+            doc['last_ran'] = str(new_time)
+            update = True
 
         num_new = 0
         if 'since_ids' not in doc:
@@ -155,16 +94,13 @@ def update_query_state(query_doc, last_tweet_ids, db_query, db_geocodes):
                 doc['since_ids'][term] = str(since_id)
                 num_new += 1
 
-        if num_new == 0:
-            return None
+        if num_new > 0:
+            update = True
 
-        return doc
+        print("Updating document?\t%s" % update)
+        return doc if update else None
 
     retry_save(db_query, query_doc['_id'], None, f_edit, None)
-
-
-def is_retweet(tweet):
-    return 'retweeted_status' in tweet._json
 
 def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
     # NOTES:
@@ -172,39 +108,11 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
     # 1. We're guaranteed to at least have a user location, since
     #    we're filtering through Twitter SEARCH API (geocode)
     #
-    def f_init(tweet):
-        # TODO: Should we import all of the data?
-        # TODO: Any preprocessing we need to do?
-        doc = tweet._json
-
-        # add meta data
-        doc['createdat_norm'] = normalise_createdat(doc['created_at'])
-
-        # TODO: Use original tweeter's location as retweet
-        if is_retweet(tweet):
-            loc_str = doc['retweeted_status']['user']['location']
-        else:
-            loc_str = doc['user']['location']
-            
         
-        loc_nor_name, is_vic = find_user_location(loc_str, db_geocodes)
-        if not is_vic:
-            return None
+    queries = [query_doc['_id']]
+    if 'abbrev' in query_doc:
+        queries += query_doc["abbrev"]
 
-        doc['loc_norm'] = loc_nor_name
-        return doc
-
-    def f_edit(tweet):
-        # TODO: Fix this
-        return None
-    
-    def f_state(added, doc_id):
-        if not added:
-            print("Tweet already added:\t", doc_id)
-        else:
-            print("Tweet accepted:\t", doc_id)
-        
-    queries = query_doc["abbrev"] + [query_doc['_id']]
     print("Queries (including abbrevs):\t%s" % queries)
     new_since_ids = defaultdict(int)
 
@@ -227,20 +135,26 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes):
         for tweet in limit_handled(cur):
             print("\nProcessing tweet ID:\t%d" % tweet.id)
             total_tweets_iter += 1
-            init_doc = f_init(tweet)
+            init_doc = prepare_twitter_doc(tweet, query_doc, word,
+                                           db_geocodes, arcgis)
 
             if init_doc is not None:
-                doc, added = retry_save(db_tweets, tweet.id, init_doc, f_edit, f_state)
+                doc, added = retry_save(db_tweets, tweet.id,
+                                        init_doc,
+                                        modify_twitter_doc,
+                                        notify_twit_save_status)
                 if added:
                     total_tweets_added += 1
                 print("Tweet added status:\t%s" % added)
 
-            new_since_ids[word] = max(new_since_ids[word], tweet._json['id_str'])
+            new_since_ids[word] = max(new_since_ids[word],
+                                      tweet._json['id_str'])
 
     # at the end update query details
     update_query_state(query_doc, new_since_ids, db_query, db_geocodes)
 
-    print("Finished query (%d/%d tweets added)): %s" % (total_tweets_added, total_tweets_iter, query_doc['_id']))
+    print("Finished query (%d/%d tweets added)): %s" %
+          (total_tweets_added, total_tweets_iter, query_doc['_id']))
 
 
 #########################    MAIN CODE BELOW    #########################
