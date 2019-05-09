@@ -1,0 +1,44 @@
+version: "3.3"
+
+services:
+  haproxy:
+    image: "haproxy"
+    ports:
+      - "5700:5984"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    networks:
+      net_db:
+        aliases:
+          - haproxy
+    configs:
+      - source: haproxy_config
+        target: /usr/local/etc/haproxy/haproxy.cfg
+
+  bb:
+    image: "127.0.0.1:5000/twittest"
+    environment:
+      - https_proxy=http://wwwproxy.unimelb.edu.au:8000
+      - http_proxy=http://wwwproxy.unimelb.edu.au:8000
+      - no_proxy=haproxy
+      - DB_URL=http://user:pass@haproxy:5984/
+      - DB_TASK_NUM={{.Task.Slot}}
+    deploy:
+      replicas: 4
+      restart_policy:
+        condition: on-failure
+    networks:
+      - net_db
+    depends_on:
+      - haproxy
+
+configs:
+  haproxy_config:
+    external: true
+
+networks:
+  net_db:
+    driver: overlay
+    

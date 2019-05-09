@@ -2,7 +2,9 @@ FROM python:2.7-slim
 
 WORKDIR /twitter
 
-COPY . /twitter
+COPY twitterutils.py /twitter
+COPY twitterscript.py /twitter
+COPY requirements.txt /twitter
 
 RUN pip install -r requirements.txt
 
@@ -10,4 +12,4 @@ RUN pip install -r requirements.txt
 #EXPOSE 80
 
 # Run Twitter script
-CMD ["python", "twitterScript.py"]
+CMD ["python", "-u", "twitterscript.py"]

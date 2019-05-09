@@ -3,9 +3,12 @@ import couchdb
 from datetime import datetime
 import pytz
 import geopy
+import httplib
 from time import sleep
 
 RATE_LIMIT_WAIT = 4 * 60
+GEOPY_TIMEOUT_RETRY = 0.75
+RECONNECT_COUCHDB_MAX = 4
 
 # Credit to http://docs.tweepy.org/en/latest/code_snippet.html
 # for the example code.
@@ -17,11 +20,12 @@ def limit_handled(cursor, api):
             while True:
                 print("[WARNING] Rate limit hit! Will check again in %.1f mins"
                     % (RATE_LIMIT_WAIT/60.0))
-                print("Exception: %s" % e)
+                print("Reported except: %s" % e)
 
                 sleep(RATE_LIMIT_WAIT)
 
-                limit = api.rate_limit_status()['resources']['search']['/search/tweets']['remaining']
+                limit = api.rate_limit_status()['resources']['search'] \
+                                               ['/search/tweets']['remaining']
                 if limit > 0:
                     break
 
@@ -35,34 +39,41 @@ def normalise_createdat(str_date):
     return [ret_date.year, ret_date.month, ret_date.day,
             ret_date.hour, ret_date.minute, ret_date.second]
 
-def retry_save(db, id, init_doc, f_edit, f_state):
+def retry_save(db, id, init_doc, f_edit):
     added = False
     doc = None
-
+    reconnect_attempts = 0
+    
     while not added:
-        retrieved_doc = db.get(unicode(id))
-
-        if retrieved_doc is None:
-            doc = init_doc
-            doc['_id'] = unicode(id)
-        else:
-            new_doc = f_edit(retrieved_doc)
-            if new_doc is None:
-                break
-            else:
-                doc = new_doc
-
         try:
-            db.save(doc)
-        except couchdb.http.ResourceConflict: # revision issue
-            # TODO: not sure if this is needed
-            sleep(0.100)  # sleep for 100 ms for server relief
-        else:
-            added = True
+            retrieved_doc = db.get(unicode(id))
+            if retrieved_doc is None:
+                doc = init_doc
+                doc['_id'] = unicode(id)
+            else:
+                new_doc = f_edit(retrieved_doc)
+                if new_doc is None:
+                    break
+                else:
+                    doc = new_doc
 
-        if f_state is not None:
-            f_state(added, doc['_id'])
+            try:
+                db.save(doc)
+            except couchdb.http.ResourceConflict: # revision issue
+                # TODO: not sure if this is needed
+                sleep(0.100)  # sleep for 100 ms for server relief
+            else:
+                added = True
 
+            reconnect_attempts = 0
+        except httplib.BadStatusLine as e:
+            # possible if we don't interact with couchdb for some time;
+            # re-establish by responding again limited amt of times
+            if reconnect_attempts >= RECONNECT_COUCHDB_MAX:
+                raise e
+            
+            reconnect_attempts += 1
+            pass
     
     return (doc if doc is not None else db.get(unicode(id)), added)
 
@@ -108,12 +119,12 @@ def find_user_location(loc_str, db_geocodes, arcgis):
             try:
                 approx_loc = arcgis.geocode(loc_str, out_fields=["RegionAbbr"])
             except geopy.exc.GeocoderTimedOut:
-                sleep(0.5) # wait until we query ArcGIS again
+                sleep(GEOPY_TIMEOUT_RETRY) # wait until we query ArcGIS again
                 continue
             break
 
         doc = retry_save(db_geocodes, approx_loc.address, f_init(approx_loc),
-                        f_edit, None)[0]
+                        f_edit)[0]
 
         # TODO: Adhoc fix
         return (approx_loc.address, approx_loc.raw['attributes']['RegionAbbr'] == "VIC")
@@ -178,9 +189,3 @@ def modify_twitter_doc(query_doc, curr_term):
         return None
 
     return wrapper_f
-
-def notify_twit_save_status(added, doc_id):
-    if not added:
-        print("Tweet already added:\t", doc_id)
-    else:
-        print("Tweet accepted:\t", doc_id)
