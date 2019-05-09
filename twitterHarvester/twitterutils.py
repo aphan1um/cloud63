@@ -6,7 +6,7 @@ import geopy
 import httplib
 from time import sleep
 
-RATE_LIMIT_WAIT = 4 * 60
+RATE_LIMIT_WAIT = 3.4 * 60
 GEOPY_TIMEOUT_RETRY = 0.75
 RECONNECT_COUCHDB_MAX = 4
 
@@ -94,14 +94,12 @@ def find_user_location(loc_str, db_geocodes, arcgis):
 
     def f_edit(doc):
         if loc_str_norm in doc['aliases']:
-            print("[WARNING] Loc already in alias")
+            print("[INFO] Loc already in alias")
             return None
 
         doc['aliases'] += [loc_str_norm] 
         
         return doc
-
-    print("Querying place:\t%s" % (loc_str_norm))
 
     # QUERY FIRST
     view = db_geocodes.view('locnames/names', key=loc_str_norm,
@@ -127,9 +125,10 @@ def find_user_location(loc_str, db_geocodes, arcgis):
                         f_edit)[0]
 
         # TODO: Adhoc fix
-        return (approx_loc.address, approx_loc.raw['attributes']['RegionAbbr'] == "VIC")
+        return (approx_loc.address, \
+                approx_loc.raw['attributes']['RegionAbbr'] == "VIC")
     else:
-        print("[NOTE] Geocode already added.")     
+        print("[INFO] Geocode \"%s\" already added." % loc_str)     
         return (view_query[0].id, view_query[0].value)
 
 
@@ -155,6 +154,7 @@ def prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis):
     ## [META] 'Normalise' or standardise the location string
     # TODO: https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/geo-objects.html
     loc_str = None
+
     if 'place' in orig_tweet and orig_tweet['place'] is not None:
         loc_str = orig_tweet['place']['full_name']
     else:
@@ -184,8 +184,7 @@ def modify_twitter_doc(query_doc, curr_term):
     def wrapper_f(doc):
         if query_doc['_id'] not in query_doc['meta'].keys():
             doc['meta'][query_doc['_id']] = query_doc['meta']
-            return doc
-        
-        return None
+
+        return doc
 
     return wrapper_f

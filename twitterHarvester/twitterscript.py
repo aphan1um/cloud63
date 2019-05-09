@@ -9,14 +9,15 @@ from twitterutils import *
 from collections import defaultdict
 
 ########################   CONSTANTS HERE:   ######################
-THRESHOLD = 60 * 70     # 1 hour and 10 mins
+THRESHOLD = 60 * 30     # 30 minutes
 MAX_QUERIES = 20
-GEO_RADIAL = "-36.565842,145.043926,442km"
+GEO_RADIAL = "-36.565842,145.043926,445km"
 TWEET_LANGUAGE = 'en'
-SEARCH_TWEET_AMOUNT = 1000
+SEARCH_TWEET_AMOUNT = 1500
 TIMEWAIT_AFTER_QUERY = 5
-TIMEWAIT_NO_QUERIES_FOUND = 8
-UPDATE_TIMESTAMP_PERIOD = 400
+TIMEWAIT_NO_QUERIES_FOUND = 9
+TIMEWAIT_QUERY_TAKEN = 5
+UPDATE_TIMESTAMP_PERIOD = 350
 
 def get_auth(api_key, api_secret, access_token, access_secret):
     auth = tweepy.OAuthHandler(api_key, api_secret)
@@ -27,7 +28,7 @@ def find_query(db_queries):
     chosen_doc = None
     attempts_made = 0
 
-    print("Preparing to choose a query to search...")
+    print("Preparing to find a query...")
 
     # in the query database section, look for a phrase/term which hasn't
     # been searched for a while or not at all.
@@ -58,8 +59,8 @@ def find_query(db_queries):
         try:
             db_queries.save(new_doc)
         except couchdb.http.ResourceConflict as e:
-            print("Failed to find query. Waiting...")
-            sleep(5) # wait for a bit
+            print("Query already taken. Waiting...")
+            sleep(TIMEWAIT_QUERY_TAKEN) # wait for a bit
         else:
             print("Query selected:\t%s" % new_doc['_id'])
             break
@@ -67,23 +68,41 @@ def find_query(db_queries):
     return new_doc
 
 def update_query_state(query_doc, db_query, db_geocodes,
-                       last_tweet_ids=None, amount_added=0, amount_recv=0):
+                       last_tweet_ids=None, amount_added=None, amount_recv=None):
     def f_edit(doc):
         update = False
 
         # update time (if the query received a lot of results, search it
-        # again)
-        
-        if amount_added > 0 and amount_recv > 0:
+        # again)        
+        if amount_added is not None and amount_recv is not None:
             proportion_accepted = amount_added/(amount_recv + 1)
-            new_time = time.time() - 0.95 * THRESHOLD * proportion_accepted \
-                + 0.75 * THRESHOLD * (1 - (amount_recv/SEARCH_TWEET_AMOUNT))
+
+            if amount_recv == 0:
+                if 'streak_nonerecv' in doc:
+                    doc['streak_nonerecv'] = \
+                        str(int(doc['streak_nonerecv']) + 1)
+                else:
+                    doc['streak_nonerecv'] = str(1)
+            else:
+                doc['streak_nonerecv'] = str(0)
+
+            if amount_added == 0:
+                if 'streak_noneadded' in doc:
+                    doc['streak_noneadded'] = \
+                        str(int(doc['streak_noneadded']) + 1)
+                else:
+                    doc['streak_noneadded'] = str(1)
+            else:
+                doc['streak_noneadded'] = str(0)
+
+            new_time = time.time() - 0.9 * THRESHOLD * proportion_accepted \
+                + 0.42 * THRESHOLD * (1 - (amount_recv/SEARCH_TWEET_AMOUNT)) \
+                + max(15 * int(doc['streak_nonerecv']), 7.5 * int(doc['streak_noneadded']))
         else:
             new_time = time.time()
         
         if new_time > float(doc['last_ran']):
             doc['last_ran'] = str(new_time)
-            print("Planned timestamp update to:\t%.2f" % new_time)
             update = True
 
         if amount_added > 0:
@@ -160,9 +179,12 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes, api):
                 if added:
                     total_tweets_added += 1
                 print("Tweet added status:\t%s" % added)
+            else:
+                print("[WARNING] Tweet found not within Victoria.")
 
             new_since_ids[word] = max(new_since_ids[word],
                                       tweet._json['id_str'])
+            
 
     # at the end update query details
     update_query_state(query_doc, db_query, db_geocodes,
@@ -185,7 +207,7 @@ print("[INFO] Connecting to database: %s" % db_url)
 
 server = couchdb.Server(db_url)
 
-db_tweets = server["tweets_new"]
+db_tweets = server["tweets"]
 db_geocodes = server["geocodes"]
 db_queries = server["tweet_queries"]
 db_api_keys = server["api_keys"]
@@ -200,14 +222,15 @@ print("[INFO] Using API key set:\n%s" % use_key)
 
 
 print("[INFO] Preparing ArcGIS...")
-arcgis = geopy.ArcGIS(username="aphan1um", password="andyphan1",
+arcgis = geopy.ArcGIS(username=os.environ['ARCGIS_USERNAME'], \
+                      password=os.environ['ARCGIS_PASS'], \
                       referer="cloudteam63")
 
 while True:
     query_doc = find_query(db_queries)
     execute_api_search(query_doc, db_tweets, db_queries, db_geocodes, api)
 
-    wait_time = random.uniform(2, TIMEWAIT_AFTER_QUERY)
+    wait_time = random.uniform(3, TIMEWAIT_AFTER_QUERY)
     print("Sleeping for %.2f seconds" % wait_time)
     sleep(wait_time)
 
