@@ -1,140 +1,30 @@
 # TODO: Handle TweepError from Tweepy API [ERROR HANDLING]
 import tweepy, couchdb
-import time
+import time, os
 import geopy
-import os
 from time import sleep
-import random
-from twitterutils import *
 from collections import defaultdict
 
+from twitterdoc import prepare_twitter_doc, modify_twitter_doc
+from twitterutils import find_query, update_query_state, save_document
+
 ########################   CONSTANTS HERE:   ######################
-THRESHOLD = 60 * 30     # 30 minutes
-MAX_QUERIES = 20
-GEO_RADIAL = "-36.565842,145.043926,445km"
+#GEO_RADIAL = "-36.565842,145.043926,445km"
 TWEET_LANGUAGE = 'en'
 SEARCH_TWEET_AMOUNT = 1500
-TIMEWAIT_AFTER_QUERY = 5
-TIMEWAIT_NO_QUERIES_FOUND = 9
-TIMEWAIT_QUERY_TAKEN = 5
 UPDATE_TIMESTAMP_PERIOD = 350
+TIMEWAIT_AFTER_QUERY = 5
+
+DB_URL = os.environ['DB_URL']
+TASK_NUMBER = int(os.environ['DB_TASK_NUM'])
+GEO_RADIAL = os.environ['GEO_RADIAL']
 
 def get_auth(api_key, api_secret, access_token, access_secret):
     auth = tweepy.OAuthHandler(api_key, api_secret)
     auth.set_access_token(access_token, access_secret)
     return tweepy.API(auth)
 
-def find_query(db_queries):
-    chosen_doc = None
-    attempts_made = 0
-
-    print("Preparing to find a query...")
-
-    # in the query database section, look for a phrase/term which hasn't
-    # been searched for a while or not at all.
-    while True:
-        startTime = time.time() - THRESHOLD
-        view = db_queries.view("queryDD/last_ran",
-                    startkey=str(startTime), descending='true',
-                    limit=MAX_QUERIES)
-        all_queries = [q for q in view]
-
-        if len(all_queries) == 0:
-            print("[#%d] No idle queries available. Waiting %ds..." \
-                    % (attempts_made, TIMEWAIT_NO_QUERIES_FOUND))
-            
-            attempts_made += 1
-            sleep(TIMEWAIT_NO_QUERIES_FOUND)
-            continue
-
-        # select random query
-        rand_idx = random.randint(0, len(all_queries)) - 1
-        chosen_query = all_queries[rand_idx].id
-
-        # now attempt to update value
-        new_doc = db_queries[chosen_query]
-        new_doc["last_ran"] = str(time.time())
-        
-        # inform DB that we're using this query. TODO: shitty code?
-        try:
-            db_queries.save(new_doc)
-        except couchdb.http.ResourceConflict as e:
-            print("Query already taken. Waiting...")
-            sleep(TIMEWAIT_QUERY_TAKEN) # wait for a bit
-        else:
-            print("Query selected:\t%s" % new_doc['_id'])
-            break
-    
-    return new_doc
-
-def update_query_state(query_doc, db_query, db_geocodes,
-                       last_tweet_ids=None, amount_added=None, amount_recv=None):
-    def f_edit(doc):
-        update = False
-
-        # update time (if the query received a lot of results, search it
-        # again)        
-        if amount_added is not None and amount_recv is not None:
-            proportion_accepted = amount_added/(amount_recv + 1)
-
-            if amount_recv == 0:
-                if 'streak_nonerecv' in doc:
-                    doc['streak_nonerecv'] = \
-                        str(int(doc['streak_nonerecv']) + 1)
-                else:
-                    doc['streak_nonerecv'] = str(1)
-            else:
-                doc['streak_nonerecv'] = str(0)
-
-            if amount_added == 0:
-                if 'streak_noneadded' in doc:
-                    doc['streak_noneadded'] = \
-                        str(int(doc['streak_noneadded']) + 1)
-                else:
-                    doc['streak_noneadded'] = str(1)
-            else:
-                doc['streak_noneadded'] = str(0)
-
-            new_time = time.time() - 0.9 * THRESHOLD * proportion_accepted \
-                + 0.42 * THRESHOLD * (1 - (amount_recv/SEARCH_TWEET_AMOUNT)) \
-                + max(15 * int(doc['streak_nonerecv']), 7.5 * int(doc['streak_noneadded']))
-        else:
-            new_time = time.time()
-        
-        if new_time > float(doc['last_ran']):
-            doc['last_ran'] = str(new_time)
-            update = True
-
-        if amount_added > 0:
-            if 'amount_added' in doc:
-                doc['amount_added'] = str(int(doc['amount_added']) + amount_added)
-            else:
-                doc['amount_added'] = str(amount_added)
-
-        if last_tweet_ids is not None:
-            num_new = 0
-            if 'since_ids' not in doc:
-                doc['since_ids'] = {}
-                num_new += 1
-            
-            for term, since_id in last_tweet_ids.items():
-                if term in doc['since_ids']:
-                    old_since_id = int(doc['since_ids'][term])
-                    if since_id > old_since_id:
-                        doc['since_ids'][term] = str(since_id)
-                        num_new += 1
-                else:
-                    doc['since_ids'][term] = str(since_id)
-                    num_new += 1
-
-            if num_new > 0:
-                update = True
-
-        return doc if update else None
-
-    retry_save(db_query, query_doc['_id'], None, f_edit)
-
-def execute_api_search(query_doc, db_tweets, db_query, db_geocodes, api):
+def execute_api_search(query_doc, dbs, api):
     # NOTES:
     #
     # 1. We're guaranteed to at least have a user location, since
@@ -167,27 +57,27 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes, api):
             print("\nProcessing tweet ID:\t%d" % tweet.id)
             total_tweets_iter += 1
             if total_tweets_iter % UPDATE_TIMESTAMP_PERIOD == 0:
-                update_query_state(query_doc, db_query, db_geocodes)
+                update_query_state(query_doc, dbs['queries'], dbs['geocodes'])
             
             init_doc = prepare_twitter_doc(tweet, query_doc, \
-                                           db_geocodes, arcgis)
+                                           dbs['geocodes'], arcgis)
 
             if init_doc is not None:
-                doc, added = retry_save(db_tweets, tweet.id,
+                doc, added = save_document(dbs['tweets'], tweet.id,
                                         init_doc,
-                                        modify_twitter_doc(query_doc, word))
+                                        modify_twitter_doc(query_doc, \
+                                            dbs['geocodes'], arcgis))
                 if added:
                     total_tweets_added += 1
                 print("Tweet added status:\t%s" % added)
             else:
                 print("[WARNING] Tweet found not within Victoria.")
 
-            new_since_ids[word] = max(new_since_ids[word],
-                                      tweet._json['id_str'])
+            new_since_ids[word] = max(new_since_ids[word], tweet._json['id'])
             
 
     # at the end update query details
-    update_query_state(query_doc, db_query, db_geocodes,
+    update_query_state(query_doc, dbs['queries'], dbs['geocodes'],
                        last_tweet_ids=new_since_ids,
                        amount_added=total_tweets_added,
                        amount_recv=total_tweets_iter)
@@ -199,22 +89,17 @@ def execute_api_search(query_doc, db_tweets, db_query, db_geocodes, api):
 #########################    MAIN CODE BELOW    #########################
 
 # get env variables set within Docker container
-db_url = os.environ['DB_URL']
-task_number = int(os.environ['DB_TASK_NUM'])
+print("[INFO] Starting script for process #%d..." % TASK_NUMBER)
+print("[INFO] Connecting to database: %s" % DB_URL)
 
-print("[INFO] Starting script for process #%d..." % task_number)
-print("[INFO] Connecting to database: %s" % db_url)
+server = couchdb.Server(DB_URL)
 
-server = couchdb.Server(db_url)
+dbs = {'tweets': server["tweets"], 'geocodes': = server["geocodes"], \
+       'queries': = server["tweet_queries"], 'api_keys' = server["api_keys"] }
 
-db_tweets = server["tweets"]
-db_geocodes = server["geocodes"]
-db_queries = server["tweet_queries"]
-db_api_keys = server["api_keys"]
-
-total_apikeys = db_api_keys.info()['doc_count']
-key_idx = task_number % total_apikeys
-use_key = db_api_keys.get(str(key_idx))
+total_apikeys = dbs['api_keys'].info()['doc_count']
+key_idx = TASK_NUMBER % total_apikeys
+use_key = dbs['api_keys'].get(str(key_idx))
 
 api = get_auth(use_key['api_key'], use_key['api_secret'], \
                use_key['access_token'], use_key['access_secret'])
@@ -227,11 +112,10 @@ arcgis = geopy.ArcGIS(username=os.environ['ARCGIS_USERNAME'], \
                       referer="cloudteam63")
 
 while True:
-    query_doc = find_query(db_queries)
-    execute_api_search(query_doc, db_tweets, db_queries, db_geocodes, api)
+    query_doc = find_query(dbs['queries'])
+    execute_api_search(query_doc, dbs, api)
 
-    wait_time = random.uniform(3, TIMEWAIT_AFTER_QUERY)
-    print("Sleeping for %.2f seconds" % wait_time)
-    sleep(wait_time)
+    print("Sleeping for %.2f seconds" % TIMEWAIT_AFTER_QUERY)
+    sleep(TIMEWAIT_AFTER_QUERY)
 
 print("[INFO] Ending script...")

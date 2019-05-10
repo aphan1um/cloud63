@@ -27,6 +27,7 @@ services:
       - DB_TASK_NUM={{.Task.Slot}}
       - ARCGIS_USERNAME=aphan1um
       - ARCGIS_PASS=andyphan1
+      - GEO_RADIAL=-28.052919,133.652009,2160km
     deploy:
       replicas: 5
       restart_policy:

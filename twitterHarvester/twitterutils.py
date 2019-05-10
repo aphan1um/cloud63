@@ -1,14 +1,19 @@
-import tweepy
-import couchdb
+import tweepy, couchdb
+import random
 from datetime import datetime
-import pytz
-import geopy
-import httplib
+import pytz, geopy
+import http.client
 from time import sleep
+import pygeohash as pgh
 
-RATE_LIMIT_WAIT = 3.4 * 60
+RATE_LIMIT_WAIT = 3.2 * 60
 GEOPY_TIMEOUT_RETRY = 0.75
 RECONNECT_COUCHDB_MAX = 4
+
+THRESHOLD = 60 * 23     # 23 minutes
+MAX_QUERIES = 20
+TIMEWAIT_NO_QUERIES_FOUND = 9
+TIMEWAIT_QUERY_TAKEN = 5
 
 # Credit to http://docs.tweepy.org/en/latest/code_snippet.html
 # for the example code.
@@ -39,17 +44,120 @@ def normalise_createdat(str_date):
     return [ret_date.year, ret_date.month, ret_date.day,
             ret_date.hour, ret_date.minute, ret_date.second]
 
-def retry_save(db, id, init_doc, f_edit):
+def find_query(db_queries):
+    chosen_doc = None
+    attempts_made = 0
+
+    print("Preparing to find a query...")
+
+    # in the query database section, look for a phrase/term which hasn't
+    # been searched for a while or not at all.
+    while True:
+        startTime = time.time() - THRESHOLD
+        view = db_queries.view("queryDD/last_ran",
+                    startkey=str(startTime), descending='true',
+                    limit=MAX_QUERIES)
+        all_queries = [q for q in view]
+
+        if len(all_queries) == 0:
+            print("[#%d] No idle queries available. Waiting %ds..." \
+                    % (attempts_made, TIMEWAIT_NO_QUERIES_FOUND))
+            
+            attempts_made += 1
+            sleep(TIMEWAIT_NO_QUERIES_FOUND)
+            continue
+
+        # select random query
+        rand_idx = random.randint(0, len(all_queries)) - 1
+        chosen_query = all_queries[rand_idx].id
+
+        # now attempt to update value
+        new_doc = db_queries[chosen_query]
+        new_doc["last_ran"] = str(time.time())
+        
+        # inform DB that we're using this query. TODO: shitty code?
+        try:
+            db_queries.save(new_doc)
+        except couchdb.http.ResourceConflict as e:
+            print("Query already taken. Waiting...")
+            sleep(TIMEWAIT_QUERY_TAKEN) # wait for a bit
+        else:
+            print("Query selected:\t%s" % new_doc['_id'])
+            break
+    
+    return new_doc
+
+def update_query_state(query_doc, db_query, db_geocodes,
+                       last_tweet_ids=None, amount_added=None, amount_recv=None):
+    def f_edit(doc):
+        # update time (if the query received a lot of results, search it
+        # again)        
+        if amount_added is not None and amount_recv is not None:
+            proportion_accepted = amount_added/(amount_recv + 1)
+
+            if amount_recv == 0:
+                if 'streak_nonerecv' in doc:
+                    doc['streak_nonerecv'] = \
+                        str(int(doc['streak_nonerecv']) + 1)
+                else:
+                    doc['streak_nonerecv'] = str(1)
+            else:
+                doc['streak_nonerecv'] = str(0)
+
+            if amount_added == 0:
+                if 'streak_noneadded' in doc:
+                    doc['streak_noneadded'] = \
+                        str(int(doc['streak_noneadded']) + 1)
+                else:
+                    doc['streak_noneadded'] = str(1)
+            else:
+                doc['streak_noneadded'] = str(0)
+
+            new_time = time.time() - 0.9 * THRESHOLD * proportion_accepted \
+                + 0.42 * THRESHOLD * (1 - (amount_recv/SEARCH_TWEET_AMOUNT)) \
+                + max(11 * int(doc['streak_nonerecv']), 5.5 * int(doc['streak_noneadded']))
+        else:
+            new_time = time.time()
+
+        doc['last_ran'] = str(new_time)
+
+        if amount_added is not None and amount_added > 0:
+            if 'amount_added' in doc:
+                doc['amount_added'] = str(int(doc['amount_added']) + amount_added)
+            else:
+                doc['amount_added'] = str(amount_added)
+
+        if last_tweet_ids is not None:
+            num_new = 0
+            if 'since_ids' not in doc:
+                doc['since_ids'] = {}
+                num_new += 1
+            
+            for term, since_id in last_tweet_ids.items():
+                if term in doc['since_ids']:
+                    old_since_id = int(doc['since_ids'][term])
+                    if since_id > old_since_id:
+                        doc['since_ids'][term] = str(since_id)
+                        num_new += 1
+                else:
+                    doc['since_ids'][term] = str(since_id)
+                    num_new += 1
+
+        return doc
+
+    save_document(db_query, query_doc['_id'], None, f_edit)
+
+def save_document(db, id, init_doc, f_edit):
     added = False
     doc = None
     reconnect_attempts = 0
     
     while not added:
         try:
-            retrieved_doc = db.get(unicode(id))
+            retrieved_doc = db.get(str(id))
             if retrieved_doc is None:
                 doc = init_doc
-                doc['_id'] = unicode(id)
+                doc['_id'] = str(id)
             else:
                 new_doc = f_edit(retrieved_doc)
                 if new_doc is None:
@@ -66,7 +174,7 @@ def retry_save(db, id, init_doc, f_edit):
                 added = True
 
             reconnect_attempts = 0
-        except httplib.BadStatusLine as e:
+        except http.client.BadStatusLine as e:
             # possible if we don't interact with couchdb for some time;
             # re-establish by responding again limited amt of times
             if reconnect_attempts >= RECONNECT_COUCHDB_MAX:
@@ -75,7 +183,7 @@ def retry_save(db, id, init_doc, f_edit):
             reconnect_attempts += 1
             pass
     
-    return (doc if doc is not None else db.get(unicode(id)), added)
+    return (doc if doc is not None else db.get(str(id)), added)
 
 
 def is_retweet(tweet):
@@ -84,13 +192,16 @@ def is_retweet(tweet):
 def norm_location(loc_str):
     return loc_str.lower().replace(',', '')
 
+
 def find_user_location(loc_str, db_geocodes, arcgis):
     loc_str_norm = norm_location(loc_str)
 
     def f_init(geoc):
         return {'position': [geoc.latitude, geoc.longitude],
                 'aliases':  list(set([loc_str_norm, norm_location(geoc.address)])),
-                'state': geoc.raw['attributes']['RegionAbbr']}
+                'state': geoc.raw['attributes']['Region'],
+                'country': geoc.raw['attributes']['Country'],
+                'geohash': pgh.encode(geoc.latitude, geoc.longitude)}
 
     def f_edit(doc):
         if loc_str_norm in doc['aliases']:
@@ -98,7 +209,6 @@ def find_user_location(loc_str, db_geocodes, arcgis):
             return None
 
         doc['aliases'] += [loc_str_norm] 
-        
         return doc
 
     # QUERY FIRST
@@ -109,82 +219,22 @@ def find_user_location(loc_str, db_geocodes, arcgis):
     # if location isn't DB stored, have to find via ArcGIS (geocoder service)
     if len(view_query) == 0:
         # TODO: Crap code, but it kinda ensures we get position in Australia
-        if 'Australia' not in loc_str:
+        if 'australia' not in loc_str.lower():
             loc_str += " Australia"
 
         # TODO: RETRY LIMIT?
         while True:
             try:
-                approx_loc = arcgis.geocode(loc_str, out_fields=["RegionAbbr"])
+                approx_loc = arcgis.geocode(loc_str, out_fields=["Region", "Country"])
             except geopy.exc.GeocoderTimedOut:
                 sleep(GEOPY_TIMEOUT_RETRY) # wait until we query ArcGIS again
                 continue
             break
 
-        doc = retry_save(db_geocodes, approx_loc.address, f_init(approx_loc),
-                        f_edit)[0]
-
-        # TODO: Adhoc fix
-        return (approx_loc.address, \
-                approx_loc.raw['attributes']['RegionAbbr'] == "VIC")
+        loc_doc = save_document(db_geocodes, approx_loc.address, \
+                                f_init(approx_loc), f_edit)[0]
     else:
-        print("[INFO] Geocode \"%s\" already added." % loc_str)     
-        return (view_query[0].id, view_query[0].value)
-
-
-def prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis):
-    # TODO: Should we import all of the data?
-    # TODO: Any preprocessing we need to do?
-    doc = tweet._json
-    new_doc = {}
-
-    ####### Step 0: Get subset of tweet object fields
-    new_doc['full_text'] = doc['full_text']
-    new_doc['trunc_hashtags'] = [e['text'] for e in doc['entities']['hashtags']]
-    new_doc['is_retweet'] = is_retweet(tweet)
-    new_doc['created_at_list'] = normalise_createdat(doc['created_at'])
-
-    ####### Step 1: Add meta data
-    # Use original tweet if it has been retweeted
-    if is_retweet(tweet):
-        orig_tweet = doc['retweeted_status']
-    else:
-        orig_tweet = doc
-
-    ## [META] 'Normalise' or standardise the location string
-    # TODO: https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/geo-objects.html
-    loc_str = None
-
-    if 'place' in orig_tweet and orig_tweet['place'] is not None:
-        loc_str = orig_tweet['place']['full_name']
-    else:
-        # next best guess is to look at user's profile loc
-        loc_str = orig_tweet['user']['location']
-
-    # 'geo' JSON field is deprecated; use 'coordinates' instead
-    # 'coordinates' is in (long, lat) format; want it the other way
-    if 'coordinates' in orig_tweet and orig_tweet['coordinates'] is not None:
-        if 'coordinates' in orig_tweet['coordinates'] and orig_tweet['coordinates']['type'] == 'Point':
-            new_doc['coordinates'] = doc['coordinates']['coordinates'][::-1]
+        print("[INFO] Geocode \"%s\" already added." % loc_str)
+        loc_doc = db_geocodes.get(view_query[0].id)
     
-    # 'normalise' location string
-    loc_nor_name, is_vic = find_user_location(loc_str, db_geocodes, arcgis)
-    new_doc['loc_norm'] = loc_nor_name
-
-    # don't add tweet to db if not in Victoria
-    if not is_vic:
-        return None
-
-    ## [META] Copy other related query metadata
-    new_doc['meta'] = {query_doc['_id']: query_doc['meta']}
-
-    return new_doc
-
-def modify_twitter_doc(query_doc, curr_term):
-    def wrapper_f(doc):
-        if query_doc['_id'] not in query_doc['meta'].keys():
-            doc['meta'][query_doc['_id']] = query_doc['meta']
-
-        return doc
-
-    return wrapper_f
+    return (loc_doc, loc_doc['country'] == 'AUS')
