@@ -3,6 +3,9 @@ from twitterutils import find_user_location
 
 vader_analyser = SentimentIntensityAnalyzer()
 
+def is_retweet(tweet):
+    return 'retweeted_status' in tweet._json
+
 def prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis):
     # TODO: Should we import all of the data?
     # TODO: Any preprocessing we need to do?

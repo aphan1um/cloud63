@@ -24,7 +24,9 @@ def get_auth(api_key, api_secret, access_token, access_secret):
     auth.set_access_token(access_token, access_secret)
     return tweepy.API(auth)
 
-def execute_api_search(query_doc, dbs, api):
+def start_ # <----- Here.
+
+def start_api_search(query_doc, dbs, api):
     # NOTES:
     #
     # 1. We're guaranteed to at least have a user location, since
@@ -113,7 +115,7 @@ arcgis = geopy.ArcGIS(username=os.environ['ARCGIS_USERNAME'], \
 
 while True:
     query_doc = find_query(dbs['queries'])
-    execute_api_search(query_doc, dbs, api)
+    start_api_search(query_doc, dbs, api)
 
     print("Sleeping for %.2f seconds" % TIMEWAIT_AFTER_QUERY)
     sleep(TIMEWAIT_AFTER_QUERY)
