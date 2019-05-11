@@ -97,7 +97,7 @@ def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst)
     if user_data[2] + 1 <= FRIENDS_SEARCH_DEPTH:
         friends = get_friends_ids(user_data, api)
         if friends is None:
-            user_scrape_scrape_lst.put(user_data[0])
+            user_scrape_lst.put(user_data[0])
         else:
             for fr in friends:
                 user_scrape_lst.put(fr)
