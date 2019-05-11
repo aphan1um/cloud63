@@ -281,7 +281,7 @@ def find_user_location(loc_str, db_geocodes, arcgis, is_aus=False):
                     return None, False
 
             except geopy.exc.GeocoderTimedOut:
-                print("[#%d] ArcGIS time out on string: '%s'. Waiting..." % (attempt, loc_str))
+                print("[#%d] ArcGIS time out on string: '%s'. Waiting..." % (attempts, loc_str))
                 sleep(GEOPY_TIMEOUT_RETRY) # wait until we query ArcGIS again
                 continue
             break

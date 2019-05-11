@@ -1,4 +1,0 @@
-pytz
-geopy
-tweepy
-couchdb
