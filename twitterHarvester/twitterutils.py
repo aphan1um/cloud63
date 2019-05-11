@@ -5,32 +5,38 @@ import pytz, geopy
 import http.client
 from time import sleep
 import pygeohash as pgh
+import time
 
-RATE_LIMIT_WAIT = 3.2 * 60
-GEOPY_TIMEOUT_RETRY = 0.75
+import fiona
+from shapely.geometry import shape, mapping, Point, Polygon, MultiPolygon
+
+GEOPY_TIMEOUT_RETRY = 0.8
 RECONNECT_COUCHDB_MAX = 4
 
 THRESHOLD = 60 * 23     # 23 minutes
 MAX_QUERIES = 20
 TIMEWAIT_NO_QUERIES_FOUND = 9
 TIMEWAIT_QUERY_TAKEN = 5
+MAX_ARCGIS_ATTEMPTS = 4
+
+HARVEST_STATES = {'victoria': 'vic', 'new south wales': 'nsw', \
+                  'queensland': 'qld', 'australian capital territory': 'act'}
 
 # Credit to http://docs.tweepy.org/en/latest/code_snippet.html
 # for the example code.
-def limit_handled(cursor, api):
+def limit_handled(cursor, api, family, method, wait_time):
     while True:
         try:
             yield cursor.next()
-        except (tweepy.RateLimitError, tweepy.error.TweepError) as e:
+        except (tweepy.error.RateLimitError, tweepy.error.TweepError) as e:
             while True:
-                print("[WARNING] Rate limit hit! Will check again in %.1f mins"
-                    % (RATE_LIMIT_WAIT/60.0))
-                print("Reported except: %s" % e)
+                print("Rate limit for resource %s/%s! Checking in %.1f mins"
+                    % (family, method, wait_time/60.0))
+                print("Reported exception: %s" % e)
 
-                sleep(RATE_LIMIT_WAIT)
-
-                limit = api.rate_limit_status()['resources']['search'] \
-                                               ['/search/tweets']['remaining']
+                sleep(wait_time)
+                limit = api.rate_limit_status()['resources'][family] \
+                                    ['/%s/%s' % (family, method)]['remaining']
                 if limit > 0:
                     break
 
@@ -87,8 +93,34 @@ def find_query(db_queries):
     
     return new_doc
 
+def create_user(id, db_users):
+    _, added = save_document(db_users, id, {}, lambda doc : None)
+    return added
+
+def finish_user_search(id, twit_data, db_users, user_loc, friend_lst, queries):
+    def f_edit(user_doc):
+        user_doc['location'] = user_loc
+        user_doc['twit_data'] = twit_data
+
+        if 'friend_lst' not in user_doc:
+            user_doc['friend_ids'] = []
+        if 'query' not in user_doc:
+            user_doc['query'] = {}
+
+        if len(friend_lst) > 0:
+            user_doc['friend_ids'] = list(set(user_doc['friend_ids'] + friend_lst))
+        
+        if len(queries) > 0:
+            user_doc['query'] = dict(user_doc['query'], **queries)
+        
+        return user_doc
+    
+    save_document(db_users, id, None, f_edit)
+
+
 def update_query_state(query_doc, db_query, db_geocodes,
-                       last_tweet_ids=None, amount_added=None, amount_recv=None):
+                       last_tweet_ids=None, amount_added=None,
+                       amount_recv=None):
     def f_edit(doc):
         # update time (if the query received a lot of results, search it
         # again)        
@@ -114,8 +146,7 @@ def update_query_state(query_doc, db_query, db_geocodes,
                 doc['streak_noneadded'] = str(0)
 
             new_time = time.time() - 0.9 * THRESHOLD * proportion_accepted \
-                + 0.42 * THRESHOLD * (1 - (amount_recv/SEARCH_TWEET_AMOUNT)) \
-                + max(11 * int(doc['streak_nonerecv']), 5.5 * int(doc['streak_noneadded']))
+                + max(12 * int(doc['streak_nonerecv']), 6 * int(doc['streak_noneadded']))
         else:
             new_time = time.time()
 
@@ -186,22 +217,39 @@ def save_document(db, id, init_doc, f_edit):
     return (doc if doc is not None else db.get(str(id)), added)
 
 
-def is_retweet(tweet):
-    return 'retweeted_status' in tweet._json
-
 def norm_location(loc_str):
     return loc_str.lower().replace(',', '')
 
+# Credit to: https://gis.stackexchange.com/a/208574 for how to use SHP files
+# to find a point's LGA region
+# Expect it in (latit)
+def find_lga(state, latitude, longitude):
+    if state.lower() in HARVEST_STATES.keys():
+        pt = Point(longitude, latitude)
+        state_abbrev = HARVEST_STATES[state.lower()]
+        
+        with fiona.open("shapes/%s/%s.shp" % (state_abbrev, state_abbrev)) as f:
+            for region in f:
+                if pt.within(shape(region['geometry'])):
+                    return {'lga_name': region['properties']['lga_name'], \
+                            'lga_code': region['properties']['lga_code']}
 
-def find_user_location(loc_str, db_geocodes, arcgis):
+    return None
+
+def find_user_location(loc_str, db_geocodes, arcgis, is_aus=False):
     loc_str_norm = norm_location(loc_str)
 
     def f_init(geoc):
-        return {'position': [geoc.latitude, geoc.longitude],
+        ret =  {'position': [geoc.latitude, geoc.longitude],
                 'aliases':  list(set([loc_str_norm, norm_location(geoc.address)])),
                 'state': geoc.raw['attributes']['Region'],
                 'country': geoc.raw['attributes']['Country'],
-                'geohash': pgh.encode(geoc.latitude, geoc.longitude)}
+                'geohash': pgh.encode(geoc.latitude, geoc.longitude),
+                'lga': None}
+        
+        if ret['country'] == "AUS" and ret['state'].lower() in HARVEST_STATES:
+            ret['lga'] = find_lga(ret['state'], geoc.latitude, geoc.longitude)
+        return ret
 
     def f_edit(doc):
         if loc_str_norm in doc['aliases']:
@@ -219,22 +267,37 @@ def find_user_location(loc_str, db_geocodes, arcgis):
     # if location isn't DB stored, have to find via ArcGIS (geocoder service)
     if len(view_query) == 0:
         # TODO: Crap code, but it kinda ensures we get position in Australia
-        if 'australia' not in loc_str.lower():
+        if is_aus and 'australia' not in loc_str.lower():
             loc_str += " Australia"
-
-        # TODO: RETRY LIMIT?
-        while True:
+        
+        attempts = 0
+        while attempts <= MAX_ARCGIS_ATTEMPTS:
             try:
+                attempts += 1
                 approx_loc = arcgis.geocode(loc_str, out_fields=["Region", "Country"])
+
+                # ArcGIS fails to give any coordinates (e.g with empty string)
+                if approx_loc is None:
+                    return None, False
+
             except geopy.exc.GeocoderTimedOut:
+                print("[#%d] ArcGIS time out on string: '%s'. Waiting..." % (attempt, loc_str))
                 sleep(GEOPY_TIMEOUT_RETRY) # wait until we query ArcGIS again
                 continue
             break
+
+        if attempts > MAX_ARCGIS_ATTEMPTS:
+            print("[WARN] ArcGIS timed out too much on:\t%s" % loc_str)
+            return None, False
 
         loc_doc = save_document(db_geocodes, approx_loc.address, \
                                 f_init(approx_loc), f_edit)[0]
     else:
         print("[INFO] Geocode \"%s\" already added." % loc_str)
         loc_doc = db_geocodes.get(view_query[0].id)
+
+    loc_doc.pop("aliases", None)
+    loc_doc.pop("_rev", None)
     
-    return (loc_doc, loc_doc['country'] == 'AUS')
+    return (loc_doc, loc_doc['country'] == 'AUS' and \
+             loc_doc['state'].lower() in HARVEST_STATES.keys())

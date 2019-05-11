@@ -34,6 +34,10 @@ services:
         condition: on-failure
     networks:
       - net_db
+    volumes:
+      - type: bind
+        source: ~/shapes
+        target: /twitter/shapes
     depends_on:
       - haproxy
 

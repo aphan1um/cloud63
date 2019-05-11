@@ -4,6 +4,7 @@ WORKDIR /twitter
 
 COPY twitterutils.py /twitter
 COPY twitterscript.py /twitter
+COPY twitterdoc.py /twitter
 COPY requirements.txt /twitter
 
 RUN pip install -r requirements.txt
