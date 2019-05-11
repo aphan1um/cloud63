@@ -97,10 +97,14 @@ def create_user(id, db_users):
     _, added = save_document(db_users, id, {}, lambda doc : None)
     return added
 
-def finish_user_search(id, twit_data, db_users, user_loc, friend_lst, queries):
+def finish_user_search(id, db_users, friend_lst, queries=None,  \
+    twit_data=None, user_loc=None, searched_friends=True, node_depth=None):
+
     def f_edit(user_doc):
-        user_doc['location'] = user_loc
-        user_doc['twit_data'] = twit_data
+        if user_loc is not None:
+            user_doc['location'] = user_loc
+        if twit_data is not None:
+            user_doc['twit_data'] = twit_data
 
         if 'friend_lst' not in user_doc:
             user_doc['friend_ids'] = []
@@ -110,8 +114,13 @@ def finish_user_search(id, twit_data, db_users, user_loc, friend_lst, queries):
         if len(friend_lst) > 0:
             user_doc['friend_ids'] = list(set(user_doc['friend_ids'] + friend_lst))
         
-        if len(queries) > 0:
+        if queries is not None and len(queries) > 0:
             user_doc['query'] = dict(user_doc['query'], **queries)
+
+        if node_depth is not None:
+            user_doc['node_depth'] = node_depth
+
+        user_doc['searched_friends'] = searched_friends
         
         return user_doc
     

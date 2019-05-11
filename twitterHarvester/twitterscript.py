@@ -37,73 +37,88 @@ def get_auth(api_key, api_secret, access_token, access_secret):
     return tweepy.API(auth)
 
 def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst):
-    if create_user(user_data[0], dbs['users']) == False:
-        user_scrape_lst.task_done()
-        return
+    if create_user(user_data[0], dbs['users']) == True:
+        # get Twitter user details
+        try:
+            user_twitter = api.get_user(user_data[0])
+        except tweepy.RateLimitError as e:
+            while True:
+                sleep(RATE_LIMIT_WAIT)
+                limit = api.rate_limit_status()['resources']['users'] \
+                                    ['/users/show/:id']['remaining']
+                if limit > 0:
+                    break
+        except tweepy.error.TweepError as e:
+            print("Tweepy exception (get user API %s): %s" % (user_data[0], e))
+            user_scrape_lst.task_done()
+            return
 
-    # get Twitter user details
-    try:
-        user_twitter = api.get_user(user_data[0])
-    except tweepy.RateLimitError as e:
-        while True:
-            sleep(RATE_LIMIT_WAIT)
-            limit = api.rate_limit_status()['resources']['users'] \
-                                ['/users/show/:id']['remaining']
-            if limit > 0:
-                break
-    except tweepy.error.TweepError as e:
-        print("Tweepy exception (get user API %s): %s" % (user_data[0], e))
-        user_scrape_lst.task_done()
-        return
-
-    loc_doc, user_within_states = \
-        find_user_location(user_twitter._json['location'], dbs['geocodes'], \
-                arcgis, is_aus=(user_data[2] == 0))
-    
-    queries_from_user = {}
-
-    if user_data[1] is not None:
-        queries_from_user[user_data[1]] = dbs['queries'].get(user_data[1])['meta']
-
-    if user_within_states:
-        print("** Scraping tweets for name:\t%s (%s)" % (user_twitter.screen_name, user_twitter.id_str))
-        cur = tweepy.Cursor(api.user_timeline, id=user_data[0], tweet_mode='extended').items()
-
-        cleaned_queries = [r"\b%s\b" % (q.key.lower().replace('"', '')) for q in all_queries]
-        re_queries = re.compile("|".join(cleaned_queries))
-
-        for tweet in limit_handled(cur, api, "statuses", "user_timeline", RATE_LIMIT_WAIT):
-            print("\nLooking at (user timeline) tweet:\t%d" % tweet.id)            
-            init_doc, tweet_within_states = \
-                prepare_twitter_doc(tweet, None, dbs['geocodes'], arcgis)
-            
-            if tweet_within_states:
-                queries_in_tweet = re_queries.findall(tweet._json['full_text'])
-                for q in queries_in_tweet:
-                    q_id = all_queries[cleaned_queries.index(r"\b%s\b" % q)].id
-                    q_meta = dbs['queries'].get(q_id)['meta']
-
-                    init_doc['queries'][q_id] = q_meta
-                    queries_from_user[q_id] = q_meta
-
-                doc, added = save_document(dbs['tweets'], tweet.id, init_doc, \
-                                        modify_twitter_doc(None))
-                print("Tweet added?\t%s" % added)
+        loc_doc, user_within_states = \
+            find_user_location(user_twitter._json['location'], dbs['geocodes'], \
+                    arcgis, is_aus=(user_data[2] == 0))
         
-        print("** Ended scraping for user:\t%s" % (user_twitter.id_str))
- 
+        queries_from_user = {}
+
+        if user_data[1] is not None:
+            queries_from_user[user_data[1]] = dbs['queries'].get(user_data[1])['meta']
+
+        if user_within_states:
+            print("** Scraping tweets for name:\t%s (%s)" % (user_twitter.screen_name, user_twitter.id_str))
+            cur = tweepy.Cursor(api.user_timeline, id=user_data[0], tweet_mode='extended').items()
+
+            cleaned_queries = [r"\b%s\b" % (q.key.lower().replace('"', '')) for q in all_queries]
+            re_queries = re.compile("|".join(cleaned_queries))
+
+            for tweet in limit_handled(cur, api, "statuses", "user_timeline", RATE_LIMIT_WAIT):
+                print("\nLooking at (user timeline) tweet:\t%d" % tweet.id)            
+                init_doc, tweet_within_states = \
+                    prepare_twitter_doc(tweet, None, dbs['geocodes'], arcgis)
+                
+                if tweet_within_states:
+                    queries_in_tweet = re_queries.findall(tweet._json['full_text'])
+                    for q in queries_in_tweet:
+                        q_id = all_queries[cleaned_queries.index(r"\b%s\b" % q)].id
+                        q_meta = dbs['queries'].get(q_id)['meta']
+
+                        init_doc['queries'][q_id] = q_meta
+                        queries_from_user[q_id] = q_meta
+
+                    doc, added = save_document(dbs['tweets'], tweet.id, init_doc, \
+                                            modify_twitter_doc(None))
+                    print("Tweet added?\t%s" % added)
+            
+            print("** Ended scraping for user:\t%s" % (user_twitter.id_str))
+    
+    
+    user_doc = dbs['users'].get(str(user_data[0]))
+    if 'searched_friends' not in user_doc or user_doc['searched_friends']:
+        user_scrape_lst.task_done()
+        return
+
     # now find its followers (assuming we're not looking too deep)
     friends = []
     if user_data[2] + 1 <= FRIENDS_SEARCH_DEPTH:
         friends = get_friends_ids(user_data, api)
         if friends is None:
-            user_scrape_lst.put(user_data[0])
+            user_scrape_lst.put(user_data)
+            friends = []
+            searched_friends = False
         else:
             for fr in friends:
                 user_scrape_lst.put(fr)
+            searched_friends = True
 
-    finish_user_search(user_data[0], user_twitter._json, dbs['users'], loc_doc, \
-                list(map(str, friends)), queries_from_user)
+    friend_ids = list(map(str, [f_id[0] for f_id in friends]))
+
+    if not 'searched_friends' in user_doc:
+        finish_user_search(user_data[0], dbs['users'], friend_ids, \
+            twit_data=user_twitter._json, user_loc=loc_doc, \
+            queries=queries_from_user, searched_friends=searched_friends, \
+            node_depth=user_data[2])
+    else:
+        finish_user_search(user_data[0], dbs['users'], friend_ids, \
+            searched_friends=searched_friends)
+    
     user_scrape_lst.task_done()
 
     
