@@ -115,7 +115,7 @@ def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst)
                 user_scrape_lst.put(fr)
             searched_friends = True
 
-    friend_ids = list(map(str, [f_id[0] for f_id in friends]))
+    friend_ids = list(map(str, [f_id[1] for f_id in friends]))
 
     if not 'searched_friends' in user_doc:
         finish_user_search(user_id, dbs['users'], friend_ids, \
