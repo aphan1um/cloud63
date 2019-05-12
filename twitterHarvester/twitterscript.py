@@ -20,7 +20,7 @@ UPDATE_TIMESTAMP_PERIOD = 350
 TIMEWAIT_AFTER_QUERY = 3
 RATE_LIMIT_WAIT = 3.2 * 60
 
-FRIENDS_SEARCH_DEPTH = 6
+FRIENDS_SEARCH_DEPTH = 5
 
 DB_URL = os.environ['DB_URL']
 TASK_NUMBER = int(os.environ['DB_TASK_NUM'])
@@ -28,7 +28,9 @@ GEO_RADIAL = os.environ['GEO_RADIAL']
 
 ########################   FUNCTIONS/VARIABLES:   ######################
 
-users_to_scrape = queue.Queue()
+# change this to Queue or PriorityQueue, depending on how we want to look
+# at followers
+users_to_scrape = queue.PriorityQueue()
 time_to_recheck_ids = 0
 
 def get_auth(api_key, api_secret, access_token, access_secret):
@@ -37,10 +39,15 @@ def get_auth(api_key, api_secret, access_token, access_secret):
     return tweepy.API(auth)
 
 def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst):
-    if create_user(user_data[0], dbs['users']) == True:
+    user_id = user_data[1]
+    user_depth = user_data[0]
+    user_query = user_data[2]
+    user_doc = dbs['users'].get(str(user_id))
+
+    if create_user(user_id, dbs['users']) == True or not 'searched_friends' in user_doc:
         # get Twitter user details
         try:
-            user_twitter = api.get_user(user_data[0])
+            user_twitter = api.get_user(user_id)
         except tweepy.RateLimitError as e:
             while True:
                 sleep(RATE_LIMIT_WAIT)
@@ -49,22 +56,22 @@ def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst)
                 if limit > 0:
                     break
         except tweepy.error.TweepError as e:
-            print("Tweepy exception (get user API %s): %s" % (user_data[0], e))
+            print("Tweepy exception (get user API %s): %s" % (user_id, e))
             user_scrape_lst.task_done()
             return
 
         loc_doc, user_within_states = \
             find_user_location(user_twitter._json['location'], dbs['geocodes'], \
-                    arcgis, is_aus=(user_data[2] == 0))
+                    arcgis, is_aus=(user_depth == 0))
         
         queries_from_user = {}
 
-        if user_data[1] is not None:
-            queries_from_user[user_data[1]] = dbs['queries'].get(user_data[1])['meta']
+        if user_query is not None:
+            queries_from_user[user_query] = dbs['queries'].get(user_query)['meta']
 
         if user_within_states:
             print("** Scraping tweets for name:\t%s (%s)" % (user_twitter.screen_name, user_twitter.id_str))
-            cur = tweepy.Cursor(api.user_timeline, id=user_data[0], tweet_mode='extended').items()
+            cur = tweepy.Cursor(api.user_timeline, id=user_id, tweet_mode='extended').items()
 
             cleaned_queries = [r"\b%s\b" % (q.key.lower().replace('"', '')) for q in all_queries]
             re_queries = re.compile("|".join(cleaned_queries))
@@ -90,14 +97,14 @@ def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst)
             print("** Ended scraping for user:\t%s" % (user_twitter.id_str))
     
     
-    user_doc = dbs['users'].get(str(user_data[0]))
-    if 'searched_friends' not in user_doc or user_doc['searched_friends']:
+    user_doc = dbs['users'].get(str(user_id))
+    if 'searched_friends' in user_doc and user_doc['searched_friends']:
         user_scrape_lst.task_done()
         return
 
     # now find its followers (assuming we're not looking too deep)
     friends = []
-    if user_data[2] + 1 <= FRIENDS_SEARCH_DEPTH:
+    if user_depth + 1 <= FRIENDS_SEARCH_DEPTH:
         friends = get_friends_ids(user_data, api)
         if friends is None:
             user_scrape_lst.put(user_data)
@@ -111,12 +118,12 @@ def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst)
     friend_ids = list(map(str, [f_id[0] for f_id in friends]))
 
     if not 'searched_friends' in user_doc:
-        finish_user_search(user_data[0], dbs['users'], friend_ids, \
+        finish_user_search(user_id, dbs['users'], friend_ids, \
             twit_data=user_twitter._json, user_loc=loc_doc, \
             queries=queries_from_user, searched_friends=searched_friends, \
-            node_depth=user_data[2])
+            node_depth=user_depth)
     else:
-        finish_user_search(user_data[0], dbs['users'], friend_ids, \
+        finish_user_search(user_id, dbs['users'], friend_ids, \
             searched_friends=searched_friends)
     
     user_scrape_lst.task_done()
@@ -124,6 +131,8 @@ def get_user_timeline(user_data, dbs, api, all_queries, arcgis, user_scrape_lst)
     
 def get_friends_ids(user_data, api, pages=1):
     global time_to_recheck_ids
+    user_id = user_data[1]
+    user_depth = user_data[0]
 
     if time_to_recheck_ids > time.time():
         return None
@@ -134,12 +143,12 @@ def get_friends_ids(user_data, api, pages=1):
             time_to_recheck_ids = time.time() + RATE_LIMIT_WAIT
             return None
 
-    cur = tweepy.Cursor(api.friends_ids, id=user_data[0]).pages(1)
+    cur = tweepy.Cursor(api.friends_ids, id=user_id).pages(1)
     friend_ids = []
 
     try:
         for ids in cur:
-            friend_ids += [(id, None, user_data[2] + 1) for id in ids]
+            friend_ids += [(user_depth + 1, id, None) for id in ids]
     except (tweepy.error.RateLimitError, tweepy.error.TweepError) as e:
         print("Tweepy exception (friends API): %s" % e)
         time_to_recheck_ids = time.time() + RATE_LIMIT_WAIT
@@ -192,7 +201,7 @@ def start_api_search(query_doc, dbs, api, arcgis, user_scrape_lst):
                 if added:
                     total_tweets_added += 1
 
-                user_scrape_lst.put((tweet._json['user']['id'], query_doc['_id'], 0))
+                user_scrape_lst.put((0, tweet._json['user']['id'], query_doc['_id']))
                 print("Tweet added?\t%s" % added)
 
             new_since_ids[word] = max(new_since_ids[word], tweet._json['id'])
@@ -217,10 +226,18 @@ def loop_api_search(dbs, api, arcgis, user_scrape_lst):
 def loop_user_timeline(dbs, api, arcgis, user_scrape_lst):
     # get followers from owner of the API keys4
     print("API under user ID:\t%s" % api.me().id)
-    my_friends = get_friends_ids((api.me().id, None, 0), api)
+    
+    got_my_friends = False
+    while not got_my_friends:
+        my_friends = get_friends_ids((0, api.me().id, None), api)
 
-    for friend in my_friends:
-        user_scrape_lst.put(friend)
+        if my_friends is not None:
+            for friend in my_friends:
+                user_scrape_lst.put(friend)
+            got_my_friends = True
+        else:
+            print("Waiting for friend API to be free...")
+            sleep(TIMEWAIT_AFTER_QUERY * 4)
     
     print("Initial user_scrape_lst: %s" % (list(user_scrape_lst.queue)))
 
