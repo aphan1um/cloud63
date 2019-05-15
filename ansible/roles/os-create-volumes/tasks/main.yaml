@@ -1,0 +1,36 @@
+# Create volumes from vars
+- debug:
+    msg: '{{ volume_prefix }}{{ item }}'
+  loop: '{{ instance.volumes }}'
+
+- name: BEFORE
+  debug:
+    msg: '{{ os_vol_ids }}'
+  when: os_vol_ids is defined
+
+- name: Create volume(s) on NeCTAR
+  os_volume:
+    display_name: '{{ volume_prefix }}{{ item }}'
+    size: '{{ volume_templates[item].size }}'
+    availability_zone: '{{ availability_zone }}'
+    wait: yes
+    timeout: 600
+    state: present
+  loop: '{{ instance.volumes }}'
+  register: os_vol
+
+# Credit to: https://stackoverflow.com/a/48825995 for the idea with
+# merging dictionaries
+- set_fact:
+    os_vol_ids: []
+
+- name: Create a list of volume IDs
+  set_fact:
+    #volumes: "{{ volumes | combine(temp_dict, recursive=True) }}"
+    os_vol_ids: '{{ os_vol_ids|default([]) + [ item.id ] }}'
+  #vars:
+  #  temp_dict: "{ '{{ item.item.key }}': { 'id': '{{ item.id }}' } }"
+  loop: '{{ os_vol.results }}'
+
+- debug:
+    msg: "{{ os_vol_ids }}"

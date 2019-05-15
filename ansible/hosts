@@ -1,0 +1,6 @@
+[all:vars]
+couchDB_mount_point = "./couchDB_Data"
+ansible_ssh_private_key_file = "./pkey_team63.pem"
+
+# avoids "REMOTE HOST IDENTIFICATION" when ssh'ing
+ansible_ssh_common_args="-oStrictHostKeyChecking=no"

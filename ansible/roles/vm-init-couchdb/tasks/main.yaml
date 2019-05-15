@@ -1,0 +1,43 @@
+- name: Install Docker Python packages
+  become: yes
+  block:
+    - pip:
+        name: ['docker']
+        state: latest
+    
+    - pip:
+       name: ['backports.ssl-match-hostname']
+       state: absent
+
+    # TODO: Explain this from - https://stackoverflow.com/a/51071841
+    - apt:
+        name: 'python-backports.ssl-match-hostname'
+        state: latest
+
+- name: Pull Docker CouchDB (2.3.0) image
+  docker_image:
+    name: couchdb:2.3.0
+
+- name: Make & load CouchDB container
+  docker_container:
+    name: couchdb
+    image: couchdb:2.3.0
+    state: started
+    ports:
+      - 5984:5984
+    volumes:
+      - "{{ couchDB_mount_point }}:/opt/couchdb/data"
+
+
+
+# TODO: Allow for multiple nodes
+- name: Set initial admin credentials
+  shell: >
+          curl -X POST -H "Content-Type: application/json"
+          http://{{ inventory_hostname }}:5984/_cluster_setup -d
+          '{"action": "enable_single_node", "bind_address":"0.0.0.0",
+          "username": "admin", "password":"admin"}'
+  register: admin_ret
+  until: admin_ret.stdout == '{"ok":true}'
+  retries: 5
+  delay: 3
