@@ -6,7 +6,7 @@ Allows automated deployment of our system.
 Ensure you have [the latest version of Ansible installed](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html). The code should be run outside of Nectar instances (if outside unimelb campus run it with VPN).
   
 1. Ensure you have the OpenStack API password and its RC file (rename it to *openrc.sh* and add it into this directory).
-2. Ensure you have a private key to attach to each VM instance, named *pkey_team63.sh*.
+2. Ensure you have a private key to attach to each VM instance, named *pkey_team63.pem*.
 3. Run these commands in order, into terminal:
 
 ```
