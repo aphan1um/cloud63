@@ -1,3 +1,12 @@
+#
+# For Cloud Team 63:
+#  * Akshaya Shankar - 1058281
+#  * Andy Phan - 696382
+#  * Chenbang Huang - 967186
+#  * Prashanth Shrinivasan - 986472
+#  * Qian Sun – 1027266
+#
+
 [all:vars]
 couchDB_mount_point = "./couchDB_Data"
 ansible_ssh_private_key_file = "./pkey_team63.pem"

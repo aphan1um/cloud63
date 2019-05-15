@@ -1,6 +1,14 @@
 /*
 RainbowVis-JS 
 Released under Eclipse Public License - v 1.0
+
+Used for Cloud Team 63 project:
+  * Akshaya Shankar - 1058281
+  * Andy Phan - 696382
+  * Chenbang Huang - 967186
+  * Prashanth Shrinivasan - 986472
+  * Qian Sun – 1027266
+
 */
 
 function Rainbow()
