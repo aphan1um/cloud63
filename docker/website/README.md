@@ -1,3 +1,4 @@
+
 # Website front-end
  Has static web-pages to host our website via Nginx. With Nginx's configuration, it also allows to interact with our website to interact with our REST API server within a Docker stack.
 
@@ -11,7 +12,7 @@
 
 ## Credits:
 * [chart.js](https://www.chartjs.org/) for displaying charts on our graphs web-page.
-* [RainbowVis-JS](https://github.com/anomal/RainbowVis-JS) for allowing to create a gradient of colours shown on the maps webpage.
-* [Google Map web-page example](http://vislab-ccom.unh.edu/~briana/examples/gdropdown/) for showing example on how to display a custom combobox inside a Google Map.
+* [RainbowVis-JS](https://github.com/anomal/RainbowVis-JS) for allowing to create a gradient of colours shown on the maps webpage. Script file obtained: *rainbow.js*.
+* [Google Map web-page example](http://vislab-ccom.unh.edu/~briana/examples/gdropdown/) for showing example on how to display a custom combobox inside a Google Map. Files edited: *gdropdown.js* and *gdropdown.css*.
 * [Mapshaper](https://mapshaper.org/) for compressing the .geojson files converted from AURIN, so that they would load fast enough.
 

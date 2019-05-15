@@ -1,5 +1,8 @@
+
 # Twitter script
-A Python script to harvest/scrape Tweets using a CouchDB prepared databases. To be run as a Docker image.
+A Python script to harvest/scrape Tweets using a CouchDB prepared databases. Also does preprocessing, including some simple sentiment analysis and parsing location of Tweet.
+
+To be run as a Docker container within some Docker Swarm.
 
 ## File overview:
 1. *twitterscript.py*: Main Python script to collect Tweets.

@@ -1,10 +1,13 @@
 var scenario_data = {};
 var current_scenario = null;
 
+// all considered Aussie states to view and their visbility status
+// in Google Maps (can be toggled in website)
 const ALL_STATES = {'Victoria': 2, 'New South Wales': 1, 'Queensland': 3,
                     'Australian Capital Territory': 8};
 var enabled_states = {1: false, 2: false, 3: false, 8: false};
 
+// toggle visibility of a state
 function toggle_state_visbility(name, map) {
   var lga_prefix = ALL_STATES[name];
   enabled_states[lga_prefix] = !(enabled_states[lga_prefix]);
@@ -16,6 +19,8 @@ function toggle_state_visbility(name, map) {
   }
 }
 
+// load up within Google Map's info window details on that LGA, based
+// on currently selected LGA
 function load_scenario_data_LGA(evt, lga_prefix) {
     var lga_code = evt.feature.getProperty('lga_code').toString();
     var lga_name = evt.feature.getProperty('lga_name');
@@ -88,6 +93,7 @@ function load_scenario_data_LGA(evt, lga_prefix) {
     return text;
 }
 
+// load up scenario within Google Maps, accessing rest api
 function load_scenario(map, new_scenario_num) {
     var rainbow = new Rainbow();
     var color_use = null;
@@ -114,6 +120,9 @@ function load_scenario(map, new_scenario_num) {
         $.getJSON('/test/cloud/api/v1.0/scenario/' + new_scenario_num + '/' + st,
           function (data) {
             
+            // create the gradient colors to be shown map, with a higher AURIN
+            // statistic value (e.g. obesity rate from AURIN dataset) having
+            // darker colour
             window.scenario_data = Object.assign({}, window.scenario_data, data);
             aurin_stats = Object.values(data).map(function (v) { return parseFloat(v.aurin_rate); });
             stat_max = Math.max.apply(null, aurin_stats.filter(n => !isNaN(n)));

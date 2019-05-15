@@ -223,6 +223,7 @@ var fetchDetailsForPie = function(result)
 }
 
 
+// based on value selected from combobox, call relevant function to display graph
 var dropDownCallBack = {
   fetchFromServer : function(value)
   {
@@ -344,6 +345,8 @@ var initDropDown = function(data)
     
   });
 }
+
+// create combobox
 init();
 initDropDown({"Count of all food tweets within Victoria, arranged by day" : "1",
               "Sentiment Analysis of all food tweets within VIC/NSW/QLD/ACT": "2",
