@@ -6,9 +6,12 @@
 '              when executed as arguments of save_document(...) function
 '              in twitterutils.py 
 '
-' Team members:
-'   Akshaya S. (1058281), Andy P. (696382), Chenbang H. (967186),
-'   Prashanth S. (986472), Qian S. (1027266)
+' For Cloud Team 63:
+'  * Akshaya Shankar - 1058281
+'  * Andy Phan - 696382
+'  * Chenbang Huang - 967186
+'  * Prashanth Shrinivasan - 986472
+'  * Qian Sun – 1027266
 '
 '''
 
