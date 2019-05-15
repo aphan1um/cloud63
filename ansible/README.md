@@ -68,4 +68,6 @@ sudo docker service scale test_twitscript=6
 sudo docker service scale test_website=3
 ```
 
+Refer to Docker docs for more info on how to interact with these Docker services. 
+
 
