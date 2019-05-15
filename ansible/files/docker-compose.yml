@@ -42,6 +42,7 @@ services:
         condition: on-failure
     depends_on:
       - haproxy
+      - twitscript
     
   website:
     image: "aphan1um/web:final"

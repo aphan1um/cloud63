@@ -102,6 +102,8 @@
     host_count: "{{ groups['db'] | length }}"
   roles:
     - role: db-setup-couchdb 
+    - role: db-create-databases
+      when: inventory_hostname == hostvars['localhost']['couchdb_node_leader']
   tags:
     - couchdb
   
@@ -114,7 +116,6 @@
   roles:
     - role: docker-couchdb-haproxy
     - role: docker-start-visualizer
-    - role: db-create-databases
     - role: docker-deploy-stack
   tags:
     - swarm

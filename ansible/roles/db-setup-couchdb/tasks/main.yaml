@@ -68,16 +68,4 @@
         -H 'Content-Type: application/json'
         -d '{"action": "finish_cluster"}'
 
-    # - command: curl --noproxy '*' http://user:pass@localhost:5984/_cluster_setup
-
-    # - name: DEBUG Print memberships
-    #   command: curl --noproxy '*' http://user:pass@{{ item }}:5984/_membership
-    #   loop: "{{ groups['db'] }}"
-
   when: inventory_hostname == hostvars['localhost']['couchdb_node_leader']
-
-#- name: Ensure all CouchDB nodes have the same hashed password.
-#  replace:
-#    path: ./docker.ini
-#    regexp: "^user = (.*)$"
-#    replace: "user = -pbkdf2-b6e8e563a89bfc37c47cd191927327a19039a6d0,ea0521454095d281197e871c06d514d4,10"
