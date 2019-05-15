@@ -7,7 +7,7 @@ In particular, running the Ansible script visibly creates:
 1. A functioning website as shown in video demo.
 2. At least one Twitter harvester.
 3. A clustered CouchDB database.
-4. A Docker visualiser at port 8080 (to state of containers running at different nodes).
+4. A Docker visualiser at port 8080 (to display state of containers running at different nodes).
 
 Note that with the current *docker-compose.yml* setup (which runs one Docker website container), you are able to access the website at any of the created VM instances due to the [routing mesh used by Docker](https://docs.docker.com/engine/swarm/ingress/). 
 
