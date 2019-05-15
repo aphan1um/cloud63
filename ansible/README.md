@@ -56,7 +56,7 @@ This would create in total 17 Nectar VM instances (assuming your project is perm
 *  Two (Swarm) manager nodes with no volumes named ```leaders-1``` and ```leaders-2```.
 
 * Five manager nodes named ```manager_all-1, ... manager_all-5```, and attached volumes named after them as defined in ```volume_templates```. Each of the five nodes also have [Docker node labels](https://docs.docker.com/engine/reference/commandline/node_update/#add-label-metadata-to-a-node) ```db``` and ```web```, so they will have CouchDB databases installed and be able to run a front-end website in the swarm. 
- So we would have ```mangager_all-1``` have 2 volumes be attached: ```mangager_all-volDatabase``` and ```manager_all-volManager```. They will also need to be mounted afterwards, which can be arranged within the Ansible script.
+ So we would have ```mangager_all-1``` have 2 volumes be attached: ```mangager_all-1_volDatabase``` and ```manager_all-1_volManager```. They will also need to be mounted afterwards, which can be arranged within the Ansible script.
  * Ten worker nodes named ```worker_dbs-1, ..., worker_dbs-10``` that each have a CouchDB database, to be part of a cluster, as well as a volume they can mount to.
 
 All of the 17 instances, to be part of a swarm, are able to load Twitter harvesters (not requiring certain a Docker label). Security groups, key name to use and instance image to use are shared with all of these 17 instances.
