@@ -1,3 +1,4 @@
+
 # Ansible script
 Allows automated deployment of our system.
 
@@ -21,17 +22,46 @@ chmod 600 pkey_team63.pem
 ```
 You may be prompted for Openstack password and SUDO password. Note that you may ignore *chmod* commands if the 2 files already have appropriate permissions.
 
+Below this page are additional documentation details on customising the setup that would be too long to mention in the report.
+
 ## Particular files in /ansible
-* *files/docker-compose.yml*: The "blueprint" to running our components for our system. This can be tweaked so that you may more than one Twitter harvester for example, so Ansible script will deploy them when executed.
+***files/docker-compose.yml***: The "blueprint" to running our components for our system; a Docker Compose file. This can be tweaked so that you may more than one Twitter harvester for example, so Ansible script will deploy them when executed.
 
-* *files/couchdb_docs.tar.gz*: Compressed archive containing relevant documents & design docs to insert into the newly created CouchDB database before running the Docker images. Compressed so that it may be easily downloadable into VM instance delegated to insert documents during Ansible script execution. File contents:
-	* *queries_couchdb.json*: Set of documents containing the 189 queries to use for running Twitter harvesters.
-	* *aurin_couchdb.json*: Contains the AURIN dataset to be inserted into *aurin_lga* database.
-	* *api_keys_couchdb.json*: Has 5 API keys to be used between the harvesters.
-	* *tweets_designdoc.json*: Design documents for the *tweets_final* database, containing views such as number of 'good/bad' food tweets within different Australian states.
-	* *geocodes_dd.json*: Design documents for *geocodes_final* database. Has a view that displays all location names (and aliases) currently within this database.
+***files/couchdb_docs.tar.gz***: Compressed archive containing relevant documents & design docs to insert into the newly created CouchDB database before running the Docker images. Compressed so that it may be easily downloadable into VM instance delegated to insert documents during Ansible script execution.
 
-* *host_vars/nectar.yaml*: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances, with differing purposes, to be created, or change the name of your key-pair to use. **Note: At least one batch instance should be a manager, since Docker Swarm requires at least one manager to create the swarm.**
+File contents:
+* *queries_couchdb.json*: Set of documents containing the 189 queries to use for running Twitter harvesters.
+* *aurin_couchdb.json*: Contains the AURIN dataset to be inserted into *aurin_lga* database.
+* *api_keys_couchdb.json*: Has 5 API keys to be used between the harvesters.
+* *tweets_designdoc.json*: Design documents for the *tweets_final* database, containing views such as number of 'good/bad' food tweets within different Australian states.
+* *geocodes_dd.json*: Design documents for *geocodes_final* database. Has a view that displays all location names (and aliases) currently within this database.
+
+***host_vars/nectar.yaml***: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances, with differing purposes, to be created, or change the name of your key-pair to use. Example:
+```
+instances:
+  - name: leaders
+    amount: 2
+    groups: ['managers']
+    volumes: []
+  - name: manager_all
+    amount: 5
+    groups: ['workers', 'db', 'web']
+    volumes: ['volDatabase', 'volManager']
+  - name: worker_dbs
+    amount: 10
+    groups: ['workers', 'db']
+    volumes: ['volDatabase']
+```
+This would create in total 17 Nectar VM instances (assuming your project is permitted to create this much):
+*  Two (Swarm) manager nodes with no volumes named ```leaders-1``` and ```leaders-2```.
+
+* Five manager nodes named ```manager_all-1, ... manager_all-5```, and attached volumes named after them as defined in ```volume_templates```. Each of the five nodes also have [Docker node labels](https://docs.docker.com/engine/reference/commandline/node_update/#add-label-metadata-to-a-node) ```db``` and ```web```, so they will have CouchDB databases installed and be able to run a front-end website in the swarm. 
+ So we would have ```mangager_all-1``` have 2 volumes be attached: ```mangager_all-volDatabase``` and ```manager_all-volManager```. They will also need to be mounted afterwards, which can be arranged within the Ansible script.
+ * Ten worker nodes named ```worker_dbs-1, ..., worker_dbs-10``` that each have a CouchDB database, to be part of a cluster, as well as a volume they can mount to.
+
+All of the 17 instances, to be part of a swarm, are able to load Twitter harvesters (not requiring certain a Docker label). Security groups, key name to use and instance image to use are shared with all of these 17 instances.
+
+Note: At least one batch instance should be a manager, since Docker Swarm requires at least one manager to create the swarm.
 
 ## Interacting with Nectar instances afterwards
 ### Interacting with CouchDB database
