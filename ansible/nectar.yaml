@@ -4,7 +4,7 @@
   gather_facts: true
 
   roles:
-    # prereq
+    # prereq tasks
     - role: os-common
     - role: os-create-security-groups
 
@@ -35,9 +35,6 @@
       set_fact:
         docker_swarm_leader: "{{ groups['managers'] | random }}"
     
-    # Credit to: https://stackoverflow.com/a/41455193 for random UUIDs.
-    #couchdb_secret: "{{ 99999999 | random | to_uuid }}"
-    #couchdb_cookie: "{{ 99999999 | random | to_uuid }}"
 
 - hosts: all:!localhost
   remote_user: ubuntu
@@ -57,10 +54,8 @@
 
     - role: vm-install-python
     - role: vm-install-docker
-    #- role: vm-init-couchdb
-    #- role: main-start-twitter-script
     
-    # If we can't create any volumes in openstack Cinder
+    # If we can't create any volumes in openstack Cinder, use this:
   post_tasks:
     - name: Create directory "{{ couchDB_mount_point }}"
       file:

@@ -73,7 +73,8 @@
             dest: ".docker/config.json"
 
         - command: systemctl daemon-reload
-        - service:
+        - name: Restart Docker service.
+          service:
             name: docker
             state: restarted
       # when: stat_ret.stat.exists == False or config_ret.stat.exists == False

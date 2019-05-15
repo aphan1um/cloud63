@@ -16,12 +16,15 @@ security_groups:
   - name: demo_docker_web
     description: "Access to Docker's visualization webpage (see running containers)."
 
+
 security_group_rules:
   - name: demo_ssh
     protocol: tcp
     port_range_min: 22
     port_range_max: 22
-    remote_ip_prefix: 0.0.0.0/0 # TODO: fix debug; 128.250.0.0/16 # only ip addresses from unimelb
+    remote_ip_prefix: 0.0.0.0/0
+    # TODO: fix 128.250.0.0/16 to use only ip addresses @ unimelb
+    # NOTE: Does not working when using unimelb VPN outside campus
   
   - name: demo_web
     protocol: tcp
@@ -51,6 +54,12 @@ instance_image: 80601a5b-3bb8-40d5-8439-aa7f2070aed0  # 0c02a3c6-3465-47cf-a495-
 instance_key_name: test
 instance_flavor: uom.general.1c4g #uom.mse.2c9g
 
+# Specify your instances here. You can create as many 'batches' of the same
+# name (e.g. manager-1, manager-2 etc). Each of them can be assigned different
+# groups. Notably, each instance group should be a manager or worker, or
+# they won't be added into the Docker Swarm cluster.
+# In addition, you can specify volumes from volume_templates to be made for
+# each instance in the 'batch'.
 instances:
   - name: manager
     amount: 1
