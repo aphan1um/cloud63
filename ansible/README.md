@@ -42,7 +42,7 @@ In this case, access it via secure port forwarding to 5984 with SSH. Example:
 ```
 ssh -L 5984:localhost:5984 -i pkey_team63.pem ubuntu@<Nectar IP address with CouchDB installed>
 ```
-Thereafter you may access Fauxton via your web-browser with address ```http://localhost:5984``` with username ```user``` and password ```pass``` (based on current Ansible configuration).
+Thereafter you may access Fauxton via your web-browser with address ```http://localhost:5984``` with username ```user``` and password ```pass``` (based on current Ansible configuration). You may also decide to use the address to access the clustered database directly via CouchDB's REST API. 
 
 ### Scaling Docker services
 You may want to modify the workload of your Twitter harvesters or the replicas of the front-end website that should be running. In that case, one may SSH into any Docker manager node (with the private key) and execute these commands:

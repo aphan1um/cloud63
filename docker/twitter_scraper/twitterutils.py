@@ -132,7 +132,7 @@ def find_query(db_queries):
         new_doc = db_queries[chosen_query]
         new_doc["last_ran"] = str(time.time())
         
-        # inform DB that we're using this query. TODO: shitty code?
+        # inform DB that we're using this query.
         try:
             db_queries.save(new_doc)
         except couchdb.http.ResourceConflict as e:
