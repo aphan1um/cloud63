@@ -1,12 +1,10 @@
-# Twitter Collecting Script
-Uses Python and [Tweepy](https://www.tweepy.org/) and [Cloudant](https://github.com/cloudant/python-cloudant) package to gather tweets in real-time by through one's Twitter account.
+# Twitter script
+A Python script to harvest/scrape Tweets using a CouchDB prepared databases. To be run as a Docker image.
 
-Needs to be connected with some database so it can be stored. However, incoming tweets might need to be preprocessed before being stored.
-
-## How to use
-1. Ensure you have Python installed with the Tweepy package (tested on version 3.7.0). A good way to do this is to create a Python virtual environment and use pip to install Tweepy.
-
-2. Simply run it with Python:
-```
-python tweetBot.py
-```
+## File overview:
+1. *twitterscript.py*: Main Python script to collect Tweets.
+2. *twitterutils.py*: Utility functions for twitterscript.py.
+3. *twitterdoc.py*: Contains functions regarding creation/modification of CouchDB documents relating to Tweets.
+4. *requirements.txt*: List of Python packages the Python Tweet scrape needs.
+5. *Dockerfile*: Pertains to creation of a Docker image for this Python script.
+6. *state_shapes.7z*: Archived file for containing files (from AURIN) that has info on local government areas (LGA) and their bounding regions. Used with script to find which LGA some location (with latitude & longitude) belongs into.
