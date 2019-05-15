@@ -13,7 +13,7 @@ Project created by team number 63.
 Each of those folders have a *README.md* file for further information inside the folder.
 
 ## Links
-* [Vimeo video link (also in report).](https://vimeo.com/336420766) for the demonstration.
+* [Vimeo video link (also in report)](https://vimeo.com/336420766) for the demonstration.
 * [Link to production website shown in the video.](http://172.26.37.217/) Should be within unimelb's VPN or within campus network to access it.
 
 ## Team members

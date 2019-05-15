@@ -1,4 +1,5 @@
 
+
 # Ansible script
 Allows automated deployment of our system.
 
@@ -7,6 +8,8 @@ In particular, running the Ansible script visibly creates:
 2. At least one Twitter harvester.
 3. A clustered CouchDB database.
 4. A Docker visualiser at port 8080 (to state of containers running at different nodes).
+
+Note that with the current *docker-compose.yml* setup (which runs one Docker website container), you are able to access the website at any of the created VM instances due to the [routing mesh used by Docker](https://docs.docker.com/engine/swarm/ingress/). 
 
 ## How to run:
 Ensure you have [the latest version of Ansible installed](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html). The code should be run outside of Nectar instances; if outside unimelb campus run it with VPN.
