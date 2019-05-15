@@ -45,7 +45,7 @@ instances:
     volumes: []
   - name: manager_all
     amount: 5
-    groups: ['workers', 'db', 'web']
+    groups: ['managers', 'db', 'web']
     volumes: ['volDatabase', 'volManager']
   - name: worker_dbs
     amount: 10
