@@ -18,4 +18,4 @@ chmod 600 pkey_team63.pem
 ## Particular files in /ansible
 * *files/docker-compose.yml*: The blueprint to running our components for our system. This can be tweaked so that you may run multiple harvesters, for instance.
 * *files/couchdb_docs.tar.gz*: Compressed archive that contains the relevant documents and design documents to insert into newly created CouchDB database before running the Docker images. These contain files such as the five API keys, an AURIN dataset and design docs for our Tweets database.
-* *host_vars/nectar.yaml*: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances, with differing purposes, to be created.
+* *host_vars/nectar.yaml*: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances, with differing purposes, to be created, or change the name of your key-pair to use.
