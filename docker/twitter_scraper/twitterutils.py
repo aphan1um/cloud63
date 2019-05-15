@@ -39,7 +39,7 @@ MAX_QUERIES = 20
 # If no (available) queries were found, amount of seconds until retry
 TIMEWAIT_NO_QUERIES_FOUND = 9
 
-# Seconds to wait if query 
+# Seconds to wait if query was selected but was later found to be taken
 TIMEWAIT_QUERY_TAKEN = 5
 
 # Amount of times to retry accessing arcgis until we cancel location search
