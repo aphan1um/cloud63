@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="gdropdown.css" />
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACzR0MJ40JWt6rDvgVBhTLGviH0R83qGY"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <script type="text/javascript" src="gdropdown.js"></script>
+    <script type="text/javascript" src="rainbow.js"></script>
+    <title>Map on Obesity Scenarios</title>
+    <style>
+       /* Set the size of the div element that contains the map */
+      #map {
+        height: 90vh;  /* The height is 400 pixels */
+        width: 100%;  /* The width is the width of the web page */
+       }
+
+       th, td {
+        padding: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>'Food related' tweets and obesity in Australia</h3>
+    <div id="map"></div>
+    <p><i>Note: In both scenarios, a darker color indicates the reported statistic from AURIN (e.g. estimate number of obese people) is higher relative to other LGAs within its state.</i></p>
+    <script type="text/javascript" src="cloud_scenarios.js"></script>
+    <script>
+      var all_gmap_datas = {};
+
+      // Initialize and add the map
+      function initMap() {
+        var myOptions = {
+          zoom: 8,
+          center: new google.maps.LatLng(-37.4713, 144.7852),
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          streetViewControl: false,
+          //mapTypeControl: false,
+		      mapTypeControlOptions: {
+	      	  style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+	        }
+        }
+
+        // The map of Australia
+        var map = new google.maps.Map(
+          document.getElementById('map'), myOptions);
+        
+        var maps_toLoad = {1: 'nsw', 2 : 'vic', 3: 'qld', 8: 'act'};
+        var infoWindow = new google.maps.InfoWindow();
+
+        Object.keys(maps_toLoad).forEach(function (m) {
+            data = new google.maps.Data();
+            data.loadGeoJson('json_maps/' + maps_toLoad[m] + '.geojson', { idPropertyName: "lga_code" });
+
+            data.setStyle({ strokeWeight: 1.5, strokeOpacity: 0.5, fillOpacity: 0.65 });
+
+            data.addListener('click', function(evt) {
+              infoWindow.setContent(load_scenario_data_LGA(evt, m));
+              infoWindow.setPosition(evt.latLng);
+              infoWindow.open(map);
+            });
+
+            all_gmap_datas[m] = data;
+        });
+
+        // The marker, positioned at Victoria
+        //var marker_vic = new google.maps.Marker({position: {lat:-37.4713, lng:144.7852}, map: map});
+        
+        //start process to set up custom drop down
+        //create the options that respond to click
+        var divOptions = {
+        		gmap: map,
+        		name: 'Scenario 1: Obesity and \'bad food\' tweets',
+        		title: "Scenario 1",
+        		id: "scenario1",
+        		action: function(){
+              // load scenario 1
+        			load_scenario(map, 1);
+        		}
+        }
+        var optionDiv1 = new optionDiv(divOptions);
+        
+        var divOptions2 = {
+        		gmap: map,
+        		name: 'Scenario 2: Consumption of fruits & correlation with \'good food\' tweets',
+        		title: "Scenario 2",
+        		id: "scenario2",
+        		action: function(){
+        			load_scenario(map, 2);
+        		}
+        }
+       
+        var optionDiv2 = new optionDiv(divOptions2);
+        
+        //create the check box items
+        var checkOptions = {
+        		gmap: map,
+        		title: "Victoria",
+        		id: "melbCheck",
+            label: "Victoria",
+            checked: true,		
+        		action: function() {
+        			toggle_state_visbility("Victoria", map);
+        		}       		
+        }
+
+        
+        var check1 = new checkBox(checkOptions);
+        
+        var checkOptions2 = {
+        		gmap: map,
+        		title: "New South Wales",
+        		id: "nswCheck",
+        		label: "New South Wales",
+        		action: function(){
+        			toggle_state_visbility("New South Wales", map);
+        		}        		        		
+        }
+        var check2 = new checkBox(checkOptions2);
+
+        var checkOptions3 = {
+        		gmap: map,
+        		title: "Queensland",
+        		id: "qldCheck",
+        		label: "Queensland",
+        		action: function(){
+        			toggle_state_visbility("Queensland", map);
+        		}        		        		
+        }
+        var check3 = new checkBox(checkOptions3);
+
+        var checkOptions4 = {
+        		gmap: map,
+        		title: "Australian Capital Territory",
+        		id: "actCheck",
+        		label: "Australian Capital Territory",
+        		action: function(){
+        			toggle_state_visbility("Australian Capital Territory", map);
+        		}        		        		
+        }
+        var check4 = new checkBox(checkOptions4);
+        
+        //create the input box items
+        
+        //possibly add a separator between controls        
+        var sep = new separator();
+        
+        //put them all together to create the drop down       
+        var ddDivOptions = {
+        	items: [optionDiv1, optionDiv2, sep, check1, check2, check3, check4],
+        	id: "myddOptsDiv"        		
+        }
+
+        var dropDownDiv = new dropDownOptionsDiv(ddDivOptions);               
+                
+        var dropDownOptions = {
+        		gmap: map,
+        		name: 'Select a scenario',
+        		id: 'ddControl',
+        		title: 'There are 2 scenarios to choose.',
+        		position: google.maps.ControlPosition.TOP_RIGHT,
+        		dropDown: dropDownDiv 
+        }
+        
+        var dropDown1 = new dropDownControl(dropDownOptions);
+        toggle_state_visbility("Victoria", map);
+      }
+      
+      google.maps.event.addDomListener(window, "load", initMap);
+    </script>
+  </body>
+</html>

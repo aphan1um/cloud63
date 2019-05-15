@@ -1,0 +1,64 @@
+availability_zone: melbourne-qh2-uom
+
+volume_templates:
+  volManager:
+    size: 10
+  volDatabase:
+    size: 75
+
+security_groups:
+  - name: demo_ssh
+    description: "Allows remote SSH access."
+  - name: demo_internal
+    description: "Allows unrestricted access between instances only."
+  - name: demo_web
+    description: "Access to front-end webpage."
+  - name: demo_docker_web
+    description: "Access to Docker's visualization webpage (see running containers)."
+
+security_group_rules:
+  - name: demo_ssh
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: 0.0.0.0/0 # TODO: fix debug; 128.250.0.0/16 # only ip addresses from unimelb
+  
+  - name: demo_web
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: 0.0.0.0/0
+
+  - name: demo_docker_web
+    protocol: tcp
+    port_range_min: 8080
+    port_range_max: 8080
+    remote_ip_prefix: 0.0.0.0/0 
+
+  - name: demo_internal
+    remote_group: demo_internal
+    protocol: tcp
+  
+  - name: demo_internal
+    remote_group: demo_internal
+    protocol: udp 
+  
+  - name: demo_internal
+    remote_group: demo_internal
+    protocol: icmp  
+
+instance_image: 80601a5b-3bb8-40d5-8439-aa7f2070aed0  # 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
+instance_key_name: test
+instance_flavor: uom.general.1c4g #uom.mse.2c9g
+
+instances:
+  - name: manager
+    amount: 1
+    groups: ['managers', 'web', 'db']
+    volumes: []
+  - name: worker
+    amount: 1
+    groups: ['workers', 'db']
+    volumes: []
+
+

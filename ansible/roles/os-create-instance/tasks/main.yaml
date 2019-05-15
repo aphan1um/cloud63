@@ -1,0 +1,47 @@
+# Create a NecTAR instance
+
+- name: Preparing instance creation.
+  debug:
+    msg: "For instance named {{ instance_name }}."
+
+- name: Create its volumes
+  include_role:
+    name: os-create-volumes
+  vars:
+    volume_prefix: "{{ instance_name + '_' }}"
+
+- name: Create instance(s)
+  os_server:
+    name: '{{ instance_name }}'
+    image: '{{ instance_image }}'
+    key_name: '{{ instance_key_name }}'
+    volumes: '{{ os_vol_ids }}'
+    flavor: '{{ instance_flavor }}'
+    availability_zone: '{{ availability_zone }}'
+    security_groups: '{{ sg_names }}'
+    network: 'qh2-uom-internal'
+    auto_floating_ip: yes
+    wait: yes
+    timeout: 600
+    state: present
+  register: os_instance
+
+# TODO: Thanks to https://stackoverflow.com/a/41908853 for the idea
+#- name: Attach volumes
+#  os_server_volume:
+#    state: present
+#    server: "{{ item.0.name }}"
+#    volume: "{{ volumes[item.1].id }}"
+#  with_subelements:
+#    - "{{ instances }}"
+#    - volumes
+
+- debug:
+    msg: "Instance created. IP Address: {{ os_instance.openstack.public_v4 }}"
+  when: os_instance.openstack is defined
+
+- name: Add groups to created instance.
+  add_host:
+    name: '{{ os_instance.openstack.public_v4 }}'
+    groups: "{{ instance.groups }}"
+    ansible_ssh_host: '{{ os_instance.openstack.public_v4 }}'

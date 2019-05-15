@@ -1,0 +1,7 @@
+- name: Copy Docker compose file to start containers.
+  copy:
+    src: "docker-compose.yml"
+    dest: "./docker-compose.yml"
+
+- name: Start the Docker stack
+  shell: "docker stack deploy -c docker-compose.yml test"

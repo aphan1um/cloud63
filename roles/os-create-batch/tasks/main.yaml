@@ -1,8 +1,0 @@
-- name: Start batching.
-  include_role:
-    name: os-create-instance
-  vars:
-    instance_name: "{{ instance.name + '_' + batch_var|string }}"
-  with_sequence: start=1 end={{ instance.amount }}
-  loop_control:
-    loop_var: batch_var

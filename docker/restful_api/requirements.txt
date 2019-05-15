@@ -1,0 +1,5 @@
+flask==1.0.2
+Flask-Cors==3.0.7
+couchdb==1.2
+bidict==0.18.0
+pytz==2019.1

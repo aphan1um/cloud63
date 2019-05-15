@@ -1,0 +1,19 @@
+- name: Copy HAProxy config file.
+  copy:
+    src: haproxy.cfg
+    dest: ./haproxy.cfg
+
+- name: Add DB instances to config file.
+  lineinfile:
+    path: ./haproxy.cfg
+    line: "{{ add_text }}"
+  vars:
+    add_text: "{{ groups['db'] | map('regex_replace', '^(.*)$',
+    '    server couchdb-\\1 \\1:5984 check inter 5s')
+    | list | join('\n') }}"
+
+- name: Prepare Docker config file for HAProxy
+  block:
+    - command: docker config rm haproxy_config
+      ignore_errors: yes
+    - command: docker config create haproxy_config haproxy.cfg

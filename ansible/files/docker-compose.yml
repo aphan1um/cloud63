@@ -1,0 +1,61 @@
+version: "3.3"
+
+services:
+  haproxy:
+    image: "haproxy"
+    ports:
+      - "5700:5984"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    configs:
+      - source: haproxy_config
+        target: /usr/local/etc/haproxy/haproxy.cfg
+
+  twitscript:
+    image: "aphan1um/twittest:final"
+    environment:
+      - https_proxy=http://wwwproxy.unimelb.edu.au:8000
+      - http_proxy=http://wwwproxy.unimelb.edu.au:8000
+      - no_proxy=haproxy
+      - DB_URL=http://user:pass@haproxy:5984/
+      - DB_TASK_NUM={{.Task.Slot}}
+      - ARCGIS_USERNAME=aphan1um
+      - ARCGIS_PASS=andyphan1
+      - GEO_RADIAL=-28.052919,133.652009,2160km
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      - haproxy
+
+  restapi:
+    image: "aphan1um/restapi:final"
+    environment:
+      - API_COUCHDB_URL=http://user:pass@haproxy:5984/
+      - API_TWEETS_DBNAME=tweets_final
+      - API_AURIN_DBNAME=aurin_lga
+    deploy:
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      - haproxy
+      - twitscript
+    
+  website:
+    image: "aphan1um/web:final"
+    ports:
+      - "80:80"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.web == yes
+    depends_on:
+      - restapi
+
+configs:
+  haproxy_config:
+    external: true
+    

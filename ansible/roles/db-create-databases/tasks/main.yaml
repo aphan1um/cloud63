@@ -1,0 +1,47 @@
+- name: Create required databases on CouchDB.
+  shell: "curl -X PUT http://user:pass@127.0.0.1:5984/{{ item }}"
+  loop:
+    - aurin_lga
+    - api_keys
+    - geocodes_final
+    - tweet_users
+    - tweet_queries
+    - tweets_final
+
+- name: Copy documents to manager.
+  copy:
+    src: "couchdb_docs.tar.gz"
+    dest: "./couchdb_docs.tar.gz"
+
+- name: Extract archive containing CouchDB documents
+  shell: "tar -xzvf couchdb_docs.tar.gz"
+
+- name: Add pre-set queries to queries database
+  shell: >
+    curl -H 'Content-Type: application/json' \
+    -X POST http://user:pass@127.0.0.1:5984/tweet_queries/_bulk_docs \
+    --data-binary "@docstoadd/queries_couchdb.json"
+
+- name: Add AURIN data to database
+  shell: >
+    curl -H 'Content-Type: application/json'
+    -X POST http://user:pass@127.0.0.1:5984/aurin_lga/_bulk_docs
+    --data-binary "@docstoadd/aurin_couchdb.json"
+
+- name: Add design document related to geocodes database
+  shell: >
+    curl -H 'Content-Type: application/json'
+    -X POST http://user:pass@127.0.0.1:5984/geocodes_final/_bulk_docs
+    --data-binary "@docstoadd/geocodes_dd.json"
+
+- name: Add Twitter API keys to database
+  shell: >
+    curl -H 'Content-Type: application/json'
+    -X POST http://user:pass@127.0.0.1:5984/api_keys/_bulk_docs
+    --data-binary "@docstoadd/api_keys_couchdb.json"
+
+- name: Add design document & views for tweets DB.
+  shell: >
+    curl -H 'Content-Type: application/json'
+    -X POST http://user:pass@127.0.0.1:5984/tweets_final/_bulk_docs
+    --data-binary "@docstoadd/tweets_designdoc.json"  

@@ -1,0 +1,8 @@
+pytz==2019.1
+geopy==1.19.0
+tweepy==3.7.0
+couchdb==1.2
+vaderSentiment==3.2.1
+pygeohash==1.2.0
+fiona==1.8.6
+shapely==1.6.4.post2
