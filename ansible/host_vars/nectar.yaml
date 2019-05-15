@@ -24,7 +24,9 @@ security_group_rules:
     port_range_max: 22
     remote_ip_prefix: 0.0.0.0/0
     # TODO: fix 128.250.0.0/16 to use only ip addresses @ unimelb
-    # NOTE: Does not working when using unimelb VPN outside campus
+    # NOTE: 128.250.0.0/16 does not work when using unimelb VPN outside campus,
+    # so sticking to 0.0.0.0/0; should be most okay if only displaying our
+    # front-end website ONLY
   
   - name: demo_web
     protocol: tcp

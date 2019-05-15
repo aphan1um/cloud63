@@ -45,7 +45,7 @@ ssh -L 5984:localhost:5984 -i pkey_team63.pem ubuntu@<Nectar IP address with Cou
 Thereafter you may access Fauxton via your web-browser with address ```http://localhost:5984``` with username ```user``` and password ```pass``` (based on current Ansible configuration).
 
 ### Scaling Docker services
-You may want to modify the workload of your Twitter harvesters or the replicas of the front-end website that should be running. In that case, one may SSH into any Docker manager node (with the private key) and execute this commands:
+You may want to modify the workload of your Twitter harvesters or the replicas of the front-end website that should be running. In that case, one may SSH into any Docker manager node (with the private key) and execute these commands:
 
 ```
 # SSH into VM (Docker manager) node
