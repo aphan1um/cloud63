@@ -12,5 +12,6 @@
 ## Credits:
 * [chart.js](https://www.chartjs.org/) for displaying charts on our graphs web-page.
 * [RainbowVis-JS](https://github.com/anomal/RainbowVis-JS) for allowing to create a gradient of colours shown on the maps webpage.
-* [Google Map web-page example](http://vislab-ccom.unh.edu/~briana/examples/gdropdown/) for showing example on how to display a custom combobox inside a Google Map. 
+* [Google Map web-page example](http://vislab-ccom.unh.edu/~briana/examples/gdropdown/) for showing example on how to display a custom combobox inside a Google Map.
+* [Mapshaper](https://mapshaper.org/) for compressing the .geojson files converted from AURIN, so that they would load fast enough.
 
