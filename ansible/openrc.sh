@@ -13,8 +13,8 @@
 export OS_AUTH_URL=https://keystone.rc.nectar.org.au:5000/v3/
 # With the addition of Keystone we have standardized on the term **project**
 # as the entity that owns the resources.
-export OS_PROJECT_ID=a40a53eeff804e0d89aa23896fbfef82
-export OS_PROJECT_NAME="unimelb-comp90024-group-63"
+export OS_PROJECT_ID=2123386c91564c97b43219c16d07177a
+export OS_PROJECT_NAME="pt-46267"
 export OS_USER_DOMAIN_NAME="Default"
 if [ -z "$OS_USER_DOMAIN_NAME" ]; then unset OS_USER_DOMAIN_NAME; fi
 export OS_PROJECT_DOMAIN_ID="default"
@@ -24,7 +24,7 @@ unset OS_TENANT_ID
 unset OS_TENANT_NAME
 # In addition to the owning entity (tenant), OpenStack stores the entity
 # performing the action as the **user**.
-export OS_USERNAME="a.phan3@student.unimelb.edu.au"
+export OS_USERNAME="s.phan1@student.unimelb.edu.au"
 # With Keystone you pass the keystone password.
 echo "Please enter your OpenStack Password for project $OS_PROJECT_NAME as user $OS_USERNAME: "
 read -sr OS_PASSWORD_INPUT

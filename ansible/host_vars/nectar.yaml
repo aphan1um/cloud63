@@ -47,15 +47,9 @@ security_group_rules:
     remote_group: demo_internal
     protocol: icmp  
 
-  - name: demo_fauxton
-    protocol: tcp
-    port_range_min: 5984
-    port_range_max: 5984
-    remote_ip_prefix: 0.0.0.0/0
-
-instance_image: 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
-instance_key_name: andy # TODO: change this
-instance_flavor: uom.mse.2c9g
+instance_image: 80601a5b-3bb8-40d5-8439-aa7f2070aed0  # 0c02a3c6-3465-47cf-a495-7d87975260b0 # Ubuntu 18.10
+instance_key_name: test
+instance_flavor: uom.general.1c4g #uom.mse.2c9g
 
 instances:
   - name: manager

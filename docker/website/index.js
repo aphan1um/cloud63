@@ -232,7 +232,7 @@ var dropDownCallBack = {
       }
       else if(value === "Sentiment Analysis of all food tweets within VIC/NSW/QLD/ACT")
       {
-        $.getJSON("/test/cloud/api/v1.0/stats/sentiment", function(data) {
+        $.getJSON("/test/cloud/api/v1.0/stats/sentiment/", function(data) {
           new_data = {"Bad food": data['bad'], "Good food": data['good']};
           fetchDetailsForPie(new_data);
         });

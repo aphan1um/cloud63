@@ -6,7 +6,7 @@ services:
     ports:
       - "5700:5984"
     deploy:
-      replicas: 2
+      replicas: 1
       restart_policy:
         condition: on-failure
     configs:
@@ -14,7 +14,7 @@ services:
         target: /usr/local/etc/haproxy/haproxy.cfg
 
   twitscript:
-    image: "127.0.0.1:4000/twittest"
+    image: "aphan1um/twittest:final"
     environment:
       - https_proxy=http://wwwproxy.unimelb.edu.au:8000
       - http_proxy=http://wwwproxy.unimelb.edu.au:8000
@@ -28,23 +28,15 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
-    volumes:
-      - type: bind
-        source: ~/shapes
-        target: /twitter/shapes
     depends_on:
       - haproxy
 
   restapi:
-    image: "127.0.0.1:4000/restapi"
+    image: "aphan1um/restapi:final"
     environment:
       - API_COUCHDB_URL=http://user:pass@haproxy:5984/
       - API_TWEETS_DBNAME=tweets_final
       - API_AURIN_DBNAME=aurin_lga
-    volumes:
-      - type: bind
-        source: ~/shapes
-        target: /restapi/shapes
     deploy:
       restart_policy:
         condition: on-failure
@@ -52,9 +44,13 @@ services:
       - haproxy
     
   website:
-    image: "127.0.0.1:4000/web"
+    image: "aphan1um/web:final"
     ports:
-      - "81:80"
+      - "80:80"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.web == yes
     depends_on:
       - restapi
 

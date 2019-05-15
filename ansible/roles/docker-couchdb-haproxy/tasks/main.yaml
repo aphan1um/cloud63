@@ -12,16 +12,8 @@
     '    server couchdb-\\1 \\1:5984 check inter 5s')
     | list | join('\n') }}"
 
-- name: Prepare Docker config file
+- name: Prepare Docker config file for HAProxy
   block:
     - command: docker config rm haproxy_config
       ignore_errors: yes
     - command: docker config create haproxy_config haproxy.cfg
-
-- name: Start HAProxy (reverse proxy + load balancer for CouchDB).
-  shell: >
-    docker service create --name haproxy-couchdb
-    -p {{ ha_port_proxy }}:5984 --replicas={{ ha_replicas }}
-    --config src=haproxy_config,target="/usr/local/etc/haproxy/haproxy.cfg"
-    haproxy
-  # TODO: Change this 5700:5984 to be a variable, magic number yuck

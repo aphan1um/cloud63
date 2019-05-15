@@ -61,12 +61,12 @@
     #- role: main-start-twitter-script
     
     # If we can't create any volumes in openstack Cinder
-    post_tasks:
-      - name: Create directory "{{ couchDB_mount_point }}"
-        file:
-          path: "{{ couchDB_mount_point }}"
-          state: directory
-        when: inventory_hostname in groups['db']
+  post_tasks:
+    - name: Create directory "{{ couchDB_mount_point }}"
+      file:
+        path: "{{ couchDB_mount_point }}"
+        state: directory
+      when: inventory_hostname in groups['db']
 
   tags:
     - setup_packages
@@ -110,8 +110,6 @@
   become: yes
   gather_facts: yes
   vars:
-    ha_port_proxy: 5700
-    ha_replicas: 2
     dock_vis_port: 8080
   roles:
     - role: docker-couchdb-haproxy
