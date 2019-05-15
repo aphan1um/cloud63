@@ -1,6 +1,6 @@
 
 # Website front-end
- Has static web-pages to host our website via Nginx. With Nginx's configuration also allows our website to interact with our (Flask) REST API server within a Docker stack.
+ Has static web-pages to host our website via Nginx. Our Nginx configuration also allows our website to interact with our (Flask) REST API server within a Docker stack.
 
 ## File overview:
 1. *index.html*: Main web page.

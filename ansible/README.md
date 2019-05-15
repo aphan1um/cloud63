@@ -22,7 +22,7 @@ chmod 600 pkey_team63.pem
 You may be prompted for Openstack password and SUDO password. Note that you may ignore *chmod* commands if the 2 files already have appropriate permissions.
 
 ## Particular files in /ansible
-* *files/docker-compose.yml*: The blueprint to running our components for our system. This can be tweaked so that you may more than one Twitter harvester, when the Ansible script is being executed.
+* *files/docker-compose.yml*: The "blueprint" to running our components for our system. This can be tweaked so that you may more than one Twitter harvester for example, so Ansible script will deploy them when executed.
 
 * *files/couchdb_docs.tar.gz*: Compressed archive containing relevant documents & design docs to insert into the newly created CouchDB database before running the Docker images. Compressed so that it may be easily downloadable into VM instance delegated to insert documents during Ansible script execution. File contents:
 	* *queries_couchdb.json*: Set of documents containing the 189 queries to use for running Twitter harvesters.
@@ -35,7 +35,7 @@ You may be prompted for Openstack password and SUDO password. Note that you may 
 
 ## Interacting with Nectar instances afterwards
 ### Interacting with CouchDB database
-One may want to interact with the Fauxton interface with any of the VM instances that had a CouchDB database installed. For instance, to interactively add more queries to database *tweet_queries* so some Twitter harvester will search this query whilst running.
+One may want to interact with the Fauxton interface with any of the VM instances that had a CouchDB database installed. For example, to interactively add more queries to database *tweet_queries* so some Twitter harvester will search this query whilst running. Another example is to add/remove Twitter API keys within the *api_keys* database.
 
 In this case, access it via secure port forwarding to 5984 with SSH. Example:
 
