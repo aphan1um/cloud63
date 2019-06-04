@@ -122,7 +122,7 @@ def get_food_queries(lga_code):
     
     ret_json = []
     queries_view = db_tweets.view('scenarios/foodsByLGA', startkey=[lga_code], \
-        endkey=[lga_code, {}], group=True)
+        endkey=[lga_code, {}], group=True, stale='update_after')
 
     # if query argument has bad_only=true, then only count tweets that
     # were considered 'bad food'; if bad_only=false, consider only good foods
@@ -130,15 +130,15 @@ def get_food_queries(lga_code):
     if 'bad_only' in request.args:
         if request.args.get('bad_only').lower() == 'true':
             queries_view = db_tweets.view('scenarios/foodsByLGA', \
-                startkey=[lga_code, True], endkey=[lga_code, True, {}], group=True)
+                startkey=[lga_code, True], endkey=[lga_code, True, {}], group=True, stale='update_after')
         elif request.args.get('bad_only').lower() == 'false':
             queries_view = db_tweets.view('scenarios/foodsByLGA', \
-                startkey=[lga_code, False], endkey=[lga_code, False, {}], group=True)
+                startkey=[lga_code, False], endkey=[lga_code, False, {}], group=True, stale='update_after')
         else:
             abort(400)
     else:
         queries_view = db_tweets.view('scenarios/foodsByLGA', startkey=[lga_code], \
-            endkey=[lga_code, {}], group=True)
+            endkey=[lga_code, {}], group=True, stale='update_after')
 
     # get all tweets in view (grouped & reduced by its keys from CouchDB)
     all_items = [v for v in queries_view]
@@ -176,7 +176,7 @@ def get_food_prop_byState(lga_prefix, consider_badFoods, aurin_stat):
     json_ret = defaultdict(dict)
 
     aurin_state = db_aurin.view('_all_docs', startkey=str(lga_prefix*10000), \
-         endkey=str((lga_prefix + 1) * 10000))
+         endkey=str((lga_prefix + 1) * 10000), stale='update_after')
 
     # go through each LGA in state
     for lga_area in aurin_state:
@@ -185,7 +185,7 @@ def get_food_prop_byState(lga_prefix, consider_badFoods, aurin_stat):
         
         foodCountView = db_tweets.view('scenarios/tweetCounts', \
             startkey=[lga_code, "food"], endkey=[lga_code, "food", {}], \
-            group=True)
+            group=True, stale='update_after')
         foodCountItems = [v for v in foodCountView]
 
         view_items = {v.key[2] : v.value for v in foodCountItems}
@@ -238,7 +238,7 @@ def get_food_by_time(lga_prefix, view_loc, f_time, order):
     state_name = STATE_LGA_PREFIX[lga_prefix]
     
     view = db_tweets.view(view_loc, startkey=[state_name], \
-            endkey=[state_name, {}], group=True)
+            endkey=[state_name, {}], group=True, stale='update_after')
 
     # if 'group' parameter specified in REST query, get foods within
     # certain group (e.g. junk food tweets as 'junk_food' or tweets
@@ -285,17 +285,17 @@ def get_restaurant_info(lga_code, all_states=False):
     '''
 
     if all_states:
-        view = db_tweets.view("stats/byRestaurant", group=True)
+        view = db_tweets.view("stats/byRestaurant", group=True, stale='update_after')
     elif lga_code in STATE_LGA_PREFIX.keys():
         view = db_tweets.view("stats/byRestaurant", startkey=[lga_code*10000], \
-            endkey=[(lga_code + 1) * 10000], reduce=False)
+            endkey=[(lga_code + 1) * 10000], reduce=False, stale='update_after')
     elif int(str(lga_code)[0]) in STATE_LGA_PREFIX.keys():
         lga_aurin_data = db_aurin.get(str(lga_code))
         if lga_aurin_data is None:
             abort(404)
 
         view = db_tweets.view("stats/byRestaurant", startkey=[lga_code], \
-            endkey=[lga_code, {}], reduce=False)
+            endkey=[lga_code, {}], reduce=False, stale='update_after')
     else:
         abort(400)
 
@@ -320,7 +320,7 @@ def get_restaurant_info(lga_code, all_states=False):
 def get_sentiment_tweets():
     ''' Get VADER sentiment on all food tweets for all concerned states. '''
     view_allFoodTweets = db_tweets.view('stats/bySentiment', startkey=["food"], \
-        endkey=["food", {}], group_level=2)
+        endkey=["food", {}], group_level=2, stale='update_after')
     sentiment_foodGroups = {"bad" if v.key[1] else "good" : v.value \
         for v in view_allFoodTweets}
     
