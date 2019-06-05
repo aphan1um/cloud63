@@ -16,3 +16,6 @@ More specifically, the images were pushed onto Docker Hub under user name ```aph
  * *restful_api*: Represents a REST API server which our website interacts with. Server then gets relevant data from CouchDB's views to send back to the web-pages.
 
 Each of these folders also contains a *README.md* for info on its contents.
+
+## Architecture of System
+![Brief overview of our system](https://imgur.com/download/6z942XM/arch "Brief diagram of the architecture of our system.")
