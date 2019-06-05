@@ -10,10 +10,21 @@
 version: "3.3"
 
 services:
+  dockvis:
+    image: "dockersamples/visualizer"
+    ports:
+      - "8080:8080"
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+
   haproxy:
     image: "haproxy"
-    ports:
-      - "5700:5984"
     deploy:
       replicas: 1
       restart_policy:
@@ -34,7 +45,7 @@ services:
       - ARCGIS_PASS=andyphan1
       - GEO_RADIAL=-28.052919,133.652009,2160km
     deploy:
-      replicas: 1
+      replicas: 5
       restart_policy:
         condition: on-failure
     depends_on:

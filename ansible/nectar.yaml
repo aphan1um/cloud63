@@ -115,11 +115,8 @@
   remote_user: ubuntu
   become: yes
   gather_facts: yes
-  vars:
-    dock_vis_port: 8080
   roles:
     - role: docker-couchdb-haproxy
-    - role: docker-start-visualizer
     - role: docker-deploy-stack
   tags:
     - swarm
