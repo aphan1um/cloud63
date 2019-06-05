@@ -14,7 +14,7 @@ Project created by team number 63.
 
 *  *ansible*: Files containing our Ansible script to automate deployment of our system, including a functioning website and a Twitter harvester.
 
-Each of those folders have a *README.md* file for more information abouts its contents.
+Each of those folders have a *README.md* file for more information about its contents.
 
 ## Links
 * [Vimeo video link (also in report)](https://vimeo.com/336420766) for a demonstration of our project.
