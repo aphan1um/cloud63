@@ -15,7 +15,7 @@ Note that with the current *docker-compose.yml* setup (which runs one Docker web
 Ensure you have [the latest version of Ansible installed](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html). The code should be run outside of Nectar instances; if outside unimelb campus run it with VPN.
   
 1. Ensure you have the OpenStack API password and its RC file (rename it to *openrc.sh* and add it into this directory).
-2. Ensure you have a private key to attach to each VM instance, named *pkey_team63.pem*.
+2. Ensure you have a private key recognised within the Nectar project. This will be used to SSH into the created VM instances. Name this private key as *pkey_team63.pem*.
 3. Run these commands into terminal:
 
 ```
@@ -23,7 +23,7 @@ chmod +x run_nectar.sh
 chmod 600 pkey_team63.pem
 ./run_nectar.sh
 ```
-You may be prompted for Openstack password and SUDO password. Note that you may ignore *chmod* commands if the 2 files already have appropriate permissions.
+You will be prompted for the Openstack and SUDO password. You may ignore the *chmod* commands if the 2 files already have appropriate permissions.
 
 Below this page are additional documentation details on customising the setup that would be too long to mention in the report.
 
@@ -39,7 +39,13 @@ File contents:
 * *tweets_designdoc.json*: Design documents for the *tweets_final* database, containing views such as number of 'good/bad' food tweets within different Australian states.
 * *geocodes_dd.json*: Design documents for *geocodes_final* database. Has a view that displays all location names (and aliases) currently within this database.
 
-***host_vars/nectar.yaml***: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances, with differing purposes, to be created, or change the name of your key-pair to use. Example:
+***./nectar.yaml***: Contains instructions to automate deployment. This also includes the mounting of attached Openstack Cinder volumes.
+
+***host_vars/nectar.yaml***: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances with differing purposes to be created.
+
+You may need to edit this file if the name of your key-pair you are going to use has a differing name than one mentioned in the file.
+
+Example of a custom VM instance setup:
 ```
 instances:
   - name: leaders
