@@ -15,7 +15,7 @@ With the current *docker-compose.yml* setup, you are able to access the website 
 Ensure you have [the latest version of Ansible installed](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html). The code should be run outside of Nectar instances; if outside unimelb campus run it with VPN.
   
 1. Ensure you have the OpenStack API password and its RC file (rename it to *openrc.sh* and add it into this directory).
-2. Ensure you have a private key recognised within the Nectar project. This will be used to SSH into the created VM instances. Name this private key as *pkey_team63.pem*.
+2. Ensure you have a private key recognised within the Nectar project. This will be used to SSH into the created VM instances. Name this private key *pkey_team63.pem*. Make sure name of the key-pair matches the one stated in the file *host_vars/nectar.yaml*.
 3. Run these commands into terminal:
 
 ```
@@ -43,7 +43,7 @@ File contents:
 
 ***host_vars/nectar.yaml***: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances with differing purposes to be created.
 
-You may need to edit this file if the name of your key-pair to be used has a differing name than one mentioned in the YAML file.
+You may need to edit this file, if the name of your key-pair to use differs from the one mentioned in the YAML file.
 
 Example of a custom VM instance setup:
 ```
