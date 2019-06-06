@@ -80,8 +80,15 @@ def limit_handled(cursor, api, family, method, wait_time):
 
                 # wait and then recheck to see if it's free
                 sleep(wait_time)
-                limit = api.rate_limit_status()['resources'][family] \
-                                    ['/%s/%s' % (family, method)]['remaining']
+
+                try:
+                    limit = api.rate_limit_status()['resources'][family] \
+                                        ['/%s/%s' % (family, method)]['remaining']
+                # rate_limit_status used too much
+                except (tweepy.error.RateLimitError, tweepy.error.TweepError):
+                    sleep(wait_time)
+                    continue
+
                 if limit > 0:
                     break
 
@@ -361,6 +368,30 @@ def find_lga(state, latitude, longitude):
 
     return None
 
+
+def find_user_location(db_geocodes, latitude, longitude):
+    '''
+    Get location information based on (lat, long) format.
+
+    Returns:
+        A 2-tuple (loc_doc, in_area).
+        - loc_doc:      Document in db_geocodes about the normalised location.
+        - in_area:      If location is within HARVEST_STATES and in Australia.
+
+        loc_doc can be None, should loc_str be degenerate (i.e. empty string)
+        or if ArcGIS fails to respond within certain limits.
+    '''
+    for state in HARVEST_STATES:
+        lga = find_lga(state, latitude, longitude)
+
+        if lga is not None:
+            return {'position': [latitude, longitude], \
+                    'state': state.title(), 'lga': lga, \
+                    'country': 'AUS', \
+                    'geohash': pgh.encode(latitude, longitude),
+                    '_id': None}
+
+    return (None, False)
 
 def find_user_location(loc_str, db_geocodes, arcgis, is_aus=False):
     '''

@@ -51,15 +51,20 @@ def prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis):
     # https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/geo-objects.html
     loc_str = None
 
-    if 'place' in orig_tweet and orig_tweet['place'] is not None:
-        loc_str = orig_tweet['place']['full_name']
+    if 'coordinates' in orig_tweet and orig_tweet['coordinates'] is not None: # exact coordinate
+        loc_doc, within_states = find_user_location(
+            orig_tweet['coordinates'][1], orig_tweet['coordinates'][0])
     else:
-        # next best guess is to look at user's profile loc
-        loc_str = orig_tweet['user']['location']
+        # approx coordinate
+        if 'place' in orig_tweet and orig_tweet['place'] is not None:
+            loc_str = orig_tweet['place']['full_name']
+        else:
+            # next best guess is to look at user's profile loc
+            loc_str = orig_tweet['user']['location']
 
-    # 'normalise' location string
-    loc_doc, within_states = find_user_location(loc_str, db_geocodes, \
-                                               arcgis, is_aus=True)
+        # 'normalise' location string
+        loc_doc, within_states = find_user_location(loc_str, db_geocodes, \
+                                                arcgis, is_aus=True)
  
     doc['location_data'] = loc_doc
 
