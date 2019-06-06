@@ -16,7 +16,7 @@
 '''
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from twitterutils import find_user_location, normalise_createdat
+from twitterutils import find_user_location, find_user_location_latlong, normalise_createdat
 
 # VADER sentiment analyser
 vader_analyser = SentimentIntensityAnalyzer()
@@ -51,18 +51,20 @@ def prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis):
     # https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/geo-objects.html
     loc_str = None
 
+    # approx coordinate
+    if 'place' in orig_tweet and orig_tweet['place'] is not None:
+        loc_str = orig_tweet['place']['full_name']
+    else:
+        # next best guess is to look at user's profile loc
+        loc_str = orig_tweet['user']['location']
+
     if 'coordinates' in orig_tweet and orig_tweet['coordinates'] is not None: # exact coordinate
         print("[INFO] Using exact coordinate data for tweet.")
         coords = orig_tweet['coordinates']['coordinates']
-        loc_doc, within_states = find_user_location(db_geocodes, coords[1], coords[0])
+        loc_doc, within_states = find_user_location_latlong(db_geocodes, coords[1], coords[0])
+        if loc_doc is not None:
+            loc_doc['_id'] = loc_str
     else:
-        # approx coordinate
-        if 'place' in orig_tweet and orig_tweet['place'] is not None:
-            loc_str = orig_tweet['place']['full_name']
-        else:
-            # next best guess is to look at user's profile loc
-            loc_str = orig_tweet['user']['location']
-
         # 'normalise' location string
         loc_doc, within_states = find_user_location(loc_str, db_geocodes, \
                                                 arcgis, is_aus=True)

@@ -46,7 +46,7 @@ TIMEWAIT_NO_QUERIES_FOUND = 9
 TIMEWAIT_QUERY_TAKEN = 5
 
 # Amount of times to retry accessing arcgis until we cancel location search
-MAX_ARCGIS_ATTEMPTS = 4
+MAX_ARCGIS_ATTEMPTS = 2
 
 # Tweets to collect if its within Australian states (fullname : abbreviation)
 HARVEST_STATES = {'victoria': 'vic', 'new south wales': 'nsw', \
@@ -370,7 +370,7 @@ def find_lga(state, latitude, longitude):
     return None
 
 
-def find_user_location(db_geocodes, latitude, longitude):
+def find_user_location_latlong(db_geocodes, latitude, longitude):
     '''
     Get location information based on (lat, long) format.
 
