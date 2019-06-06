@@ -52,6 +52,7 @@ def prepare_twitter_doc(tweet, query_doc, db_geocodes, arcgis):
     loc_str = None
 
     if 'coordinates' in orig_tweet and orig_tweet['coordinates'] is not None: # exact coordinate
+        print("[INFO] Using exact coordinate data for tweet.")
         coords = orig_tweet['coordinates']['coordinates']
         loc_doc, within_states = find_user_location(coords[1], coords[0])
     else:
