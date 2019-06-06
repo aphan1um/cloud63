@@ -85,7 +85,8 @@ def limit_handled(cursor, api, family, method, wait_time):
                     limit = api.rate_limit_status()['resources'][family] \
                                         ['/%s/%s' % (family, method)]['remaining']
                 # rate_limit_status used too much
-                except (tweepy.error.RateLimitError, tweepy.error.TweepError):
+                except (tweepy.error.RateLimitError, tweepy.error.TweepError) as e2:
+                    print("[WARN] Rate limit status limit reached. Waiting...")
                     sleep(wait_time)
                     continue
 
@@ -385,11 +386,14 @@ def find_user_location(db_geocodes, latitude, longitude):
         lga = find_lga(state, latitude, longitude)
 
         if lga is not None:
-            return {'position': [latitude, longitude], \
-                    'state': state.title(), 'lga': lga, \
-                    'country': 'AUS', \
-                    'geohash': pgh.encode(latitude, longitude),
-                    '_id': None}
+            ret = {'position': [latitude, longitude],
+                   'state': state.title(),
+                   'lga': lga,
+                   'country': 'AUS',
+                   'geohash': pgh.encode(latitude, longitude),
+                   '_id': None }
+
+            return (ret, True)
 
     return (None, False)
 
