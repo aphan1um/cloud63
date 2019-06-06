@@ -7,9 +7,9 @@ In particular, running the Ansible script visibly creates:
 1. A functioning website as shown in video demo.
 2. At least one Twitter harvester.
 3. A clustered CouchDB database.
-4. A Docker visualiser at port 8080 (to display state of containers running at different nodes).
+4. A Docker visualiser at port 8080 (displays state of containers at different nodes).
 
-Note that with the current *docker-compose.yml* setup (which runs one Docker website container), you are able to access the website at any of the created VM instances due to the [routing mesh used by Docker](https://docs.docker.com/engine/swarm/ingress/). 
+With the current *docker-compose.yml* setup, you are able to access the website at any of the created VM instances due to the [routing mesh used by Docker](https://docs.docker.com/engine/swarm/ingress/). 
 
 ## How to run:
 Ensure you have [the latest version of Ansible installed](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html). The code should be run outside of Nectar instances; if outside unimelb campus run it with VPN.
@@ -43,7 +43,7 @@ File contents:
 
 ***host_vars/nectar.yaml***: Template for creating the VM instances, security groups and volumes. This can be modified to allow as many instances with differing purposes to be created.
 
-You may need to edit this file if the name of your key-pair you are going to use has a differing name than one mentioned in the file.
+You may need to edit this file if the name of your key-pair to be used has a differing name than one mentioned in the YAML file.
 
 Example of a custom VM instance setup:
 ```
@@ -81,7 +81,7 @@ In this case, access it via secure port forwarding to 5984 with SSH. Example:
 ```
 ssh -L 5984:localhost:5984 -i pkey_team63.pem ubuntu@<Nectar IP address with CouchDB installed>
 ```
-Thereafter you may access Fauxton via your web-browser with address ```http://localhost:5984``` with username ```user``` and password ```pass``` (based on current Ansible configuration). You may also decide to use the address to access the clustered database directly via CouchDB's REST API. 
+You may then access Fauxton UI via your web-browser with address ```http://localhost:5984/_utils```, username ```user``` and password ```pass``` (based on current Ansible configuration). You may also decide to access this port to access the database(s) directly with CouchDB's REST API. 
 
 ### Scaling Docker services
 You may want to modify the workload of your Twitter harvesters or the replicas of the front-end website that should be running. In that case, one may SSH into any Docker manager node (with the private key) and execute these commands:
